@@ -6,4 +6,12 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Colores del Transmetro */
+    --color-tm-50: #eef7f2;
+    --color-tm-100: #d6ebe0;
+    --color-tm-300: #8fc1a8;
+    --color-tm-500: #1f6f54;
+    --color-tm-700: #155240;
+    --color-tm-900: #0f3b2e;
 }
