@@ -1,0 +1,204 @@
+// Modelo ER - Sistema de Control Transmetro (PostgreSQL)
+// Pegar en https://dbdiagram.io/d para generar el diagrama
+
+Table municipios [headercolor: #0F3B2E] {
+  id_municipio uuid [pk]
+  codigo_iso "varchar(10)" [not null, unique]
+  nombre "varchar(150)" [not null]
+  activo boolean [not null]
+}
+
+Table lineas [headercolor: #0F3B2E] {
+  id_linea uuid [pk]
+  id_municipio uuid [not null]
+  codigo_linea "varchar(20)" [not null, unique]
+  distancia_total_km "decimal(6,2)" [not null]
+  estado "varchar(255)" [not null]
+}
+
+Table estaciones [headercolor: #0F3B2E] {
+  id_estacion uuid [pk]
+  id_municipio uuid [not null]
+  nombre "varchar(150)" [not null]
+  aforo_maximo integer [not null]
+  aforo_actual integer [not null]
+  latitud "decimal(9,6)" [not null]
+  longitud "decimal(9,6)" [not null]
+}
+
+Table linea_estacion [headercolor: #0F3B2E] {
+  id_linea uuid [not null]
+  id_estacion uuid [not null]
+  orden_parada integer [not null]
+  distancia_previa_km "decimal(6,2)" [not null]
+  indexes {
+    (id_linea, id_estacion) [pk]
+  }
+}
+
+Table buses [headercolor: #0F3B2E] {
+  id_bus uuid [pk]
+  placa "varchar(15)" [not null, unique]
+  capacidad_maxima integer [not null]
+  id_linea_asignada uuid
+  ocupacion_actual_pct "decimal(5,2)" [not null]
+  estado_logico "varchar(255)" [not null]
+}
+
+Table accesos [headercolor: #0F3B2E] {
+  id_acceso uuid [pk]
+  id_estacion uuid [not null]
+  ubicacion_fisica "varchar(100)" [not null]
+}
+
+Table molinetes [headercolor: #0F3B2E] {
+  id_molinete uuid [pk]
+  id_acceso uuid [not null, unique]
+  ip_address "varchar(45)" [not null]
+  estado_operativo "varchar(255)" [not null]
+}
+
+Table parqueos [headercolor: #0F3B2E] {
+  id_parqueo uuid [pk]
+  id_estacion uuid [not null]
+  codigo_bahia "varchar(20)" [not null]
+  id_bus_asignado uuid [unique]
+}
+
+Table empleados [headercolor: #0F3B2E] {
+  id_empleado uuid [pk]
+  dpi "varchar(20)" [not null, unique]
+  nombre_completo "varchar(200)" [not null]
+  fecha_nacimiento date [not null]
+  rol "varchar(255)" [not null]
+  contacto_encriptado text [not null]
+  direccion_encriptada text [not null]
+  activo boolean [not null]
+}
+
+Table pilotos [headercolor: #0F3B2E] {
+  id_empleado uuid [pk]
+  numero_licencia "varchar(30)" [not null, unique]
+  tipo_licencia "varchar(10)" [not null]
+  anios_experiencia integer [not null]
+  nivel_educativo "varchar(50)" [not null]
+  historial_educativo_encriptado text
+  id_bus_asignado uuid [unique]
+}
+
+Table seguridad [headercolor: #0F3B2E] {
+  id_empleado uuid [pk]
+  permisos_vigentes "varchar(100)" [not null]
+  constancia_antecedentes_penales "varchar(100)" [not null]
+  numero_placa_asignada "varchar(15)"
+  id_acceso_asignado uuid
+}
+
+Table operadores [headercolor: #0F3B2E] {
+  id_empleado uuid [pk]
+  nivel_estudios "varchar(50)" [not null]
+  anios_experiencia_monitoreo integer [not null]
+  id_estacion_asignada uuid
+}
+
+Table tarjetas [headercolor: #B7791F] {
+  id_tarjeta uuid [pk]
+  numero_tarjeta "varchar(20)" [not null, unique]
+  saldo "decimal(8,2)" [not null]
+  estado "varchar(255)" [not null]
+  fecha_emision timestamp [not null]
+}
+
+Table recargas [headercolor: #B7791F] {
+  id_recarga uuid [pk]
+  id_tarjeta uuid [not null]
+  monto "decimal(8,2)" [not null]
+  metodo_pago "varchar(255)" [not null]
+  fecha_hora timestamp [not null]
+}
+
+Table alertas_sistema [headercolor: #0F3B2E] {
+  id_alerta uuid [pk]
+  id_estacion uuid [not null]
+  tipo_alerta "varchar(255)" [not null]
+  descripcion text [not null]
+  estado "varchar(255)" [not null]
+  fecha_creacion timestamp [not null]
+  fecha_cierre timestamp
+}
+
+Table transacciones_pago [headercolor: #0F3B2E] {
+  id_transaccion uuid [pk]
+  id_molinete uuid [not null]
+  id_tarjeta uuid
+  monto "decimal(8,2)" [not null]
+  metodo_pago "varchar(255)" [not null]
+  fecha_hora timestamp [not null]
+}
+
+Table bitacora_auditoria [headercolor: #0F3B2E] {
+  id_bitacora uuid [pk]
+  id_usuario bigint
+  id_empleado_usuario uuid
+  tabla_afectada "varchar(100)" [not null]
+  id_registro_afectado "varchar(36)"
+  accion "varchar(255)" [not null]
+  datos_previos jsonb
+  datos_nuevos jsonb
+  fecha_registro timestamp [not null]
+}
+
+Table viajes [headercolor: #0F3B2E] {
+  id_viaje uuid [pk]
+  id_bus uuid [not null]
+  id_linea uuid [not null]
+  fecha_hora_inicio timestamp [not null]
+  fecha_hora_fin timestamp
+  estado "varchar(255)" [not null]
+}
+
+Table visitas_viaje [headercolor: #0F3B2E] {
+  id_visita uuid [pk]
+  id_viaje uuid [not null]
+  id_estacion uuid [not null]
+  orden_visita integer [not null]
+  hora_llegada timestamp
+  hora_salida timestamp
+  ocupacion_al_llegar_pct "decimal(5,2)"
+}
+
+Table users [headercolor: #B7791F] {
+  id bigint [pk]
+  name "varchar(255)" [not null]
+  email "varchar(255)" [not null, unique]
+  password "varchar(255)" [not null]
+  rol "varchar(255)" [not null]
+  id_empleado uuid [unique]
+}
+
+Ref fk_accesos_estacion: accesos.id_estacion > estaciones.id_estacion
+Ref fk_alertas_estacion: alertas_sistema.id_estacion > estaciones.id_estacion
+Ref fk_bitacora_usuario: bitacora_auditoria.id_usuario > users.id
+Ref fk_bitacora_empleado: bitacora_auditoria.id_empleado_usuario > empleados.id_empleado
+Ref fk_buses_linea: buses.id_linea_asignada > lineas.id_linea
+Ref fk_estaciones_municipio: estaciones.id_municipio > municipios.id_municipio
+Ref fk_linea_estacion_estacion: linea_estacion.id_estacion > estaciones.id_estacion
+Ref fk_linea_estacion_linea: linea_estacion.id_linea > lineas.id_linea
+Ref fk_lineas_municipio: lineas.id_municipio > municipios.id_municipio
+Ref fk_molinetes_acceso: molinetes.id_acceso - accesos.id_acceso
+Ref fk_operadores_estacion: operadores.id_estacion_asignada > estaciones.id_estacion
+Ref fk_operadores_empleado: operadores.id_empleado - empleados.id_empleado
+Ref fk_parqueos_bus: parqueos.id_bus_asignado - buses.id_bus
+Ref fk_parqueos_estacion: parqueos.id_estacion > estaciones.id_estacion
+Ref fk_pilotos_bus: pilotos.id_bus_asignado - buses.id_bus
+Ref fk_pilotos_empleado: pilotos.id_empleado - empleados.id_empleado
+Ref fk_recargas_tarjeta: recargas.id_tarjeta > tarjetas.id_tarjeta
+Ref fk_seguridad_empleado: seguridad.id_empleado - empleados.id_empleado
+Ref fk_seguridad_acceso: seguridad.id_acceso_asignado > accesos.id_acceso
+Ref fk_transacciones_tarjeta: transacciones_pago.id_tarjeta > tarjetas.id_tarjeta
+Ref fk_transacciones_molinete: transacciones_pago.id_molinete > molinetes.id_molinete
+Ref fk_users_empleado: users.id_empleado - empleados.id_empleado
+Ref fk_viajes_bus: viajes.id_bus > buses.id_bus
+Ref fk_viajes_linea: viajes.id_linea > lineas.id_linea
+Ref fk_visitas_estacion: visitas_viaje.id_estacion > estaciones.id_estacion
+Ref fk_visitas_viaje: visitas_viaje.id_viaje > viajes.id_viaje
