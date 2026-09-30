@@ -22,7 +22,7 @@ class ExportadorTrazos
     public function datos(): array
     {
         $datos = [];
-        foreach (Linea::with('estaciones')->orderBy('codigo_linea')->get() as $linea) {
+        foreach (Linea::with('estaciones')->enOrden()->get() as $linea) {
             $datos[$linea->codigo_linea] = [
                 'trazo' => $linea->tieneTrazo() ? $linea->trazo : [],
                 'estaciones' => $linea->estaciones->mapWithKeys(fn ($e) => [

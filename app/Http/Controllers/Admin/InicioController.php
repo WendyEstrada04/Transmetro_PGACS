@@ -19,7 +19,7 @@ class InicioController extends Controller
     {
         $lineas = Linea::with('municipio')
             ->withCount(['estaciones', 'buses'])
-            ->orderBy('codigo_linea')
+            ->enOrden()
             ->get();
 
         return view('admin.inicio', [

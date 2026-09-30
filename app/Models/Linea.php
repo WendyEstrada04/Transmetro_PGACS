@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -34,6 +35,10 @@ class Linea extends Model
         'trazo',
     ];
 
+    /** Orden natural de los códigos: L1, L2, L6, L7, L12, L13, L18 y luego R5 (no L1, L12, L13…). */
+    public const ORDEN_SQL = "substring(lineas.codigo_linea from '^[A-Za-z]*'), "
+        ."coalesce(nullif(regexp_replace(lineas.codigo_linea, '[^0-9]', '', 'g'), '')::int, 0), lineas.codigo_linea";
+
     public const TIPOS_SERVICIO = [
         'paradas_continuas' => 'Paradas continuas (Q1.00)',
         'directo' => 'Directo (Q2.00)',
@@ -47,6 +52,12 @@ class Linea extends Model
             'ruta_circular' => 'boolean',
             'trazo' => 'array',
         ];
+    }
+
+    /** Lista las líneas en su orden natural (L1, L2, L6 … L18, R5). */
+    public function scopeEnOrden(Builder $consulta): Builder
+    {
+        return $consulta->orderByRaw(self::ORDEN_SQL);
     }
 
     /** Color de letra legible sobre el color de la línea (negro sobre colores claros como el amarillo de la L6). */

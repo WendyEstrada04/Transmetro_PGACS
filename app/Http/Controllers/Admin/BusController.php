@@ -140,7 +140,7 @@ class BusController extends Controller
 
     private function lineas(): array
     {
-        return Linea::withCount(['estaciones', 'buses'])->orderBy('codigo_linea')->get()
+        return Linea::withCount(['estaciones', 'buses'])->enOrden()->get()
             ->mapWithKeys(fn ($l) => [$l->id_linea => "{$l->codigo_linea} ({$l->buses_count} buses, máx. ".(2 * $l->estaciones_count).')'])
             ->all();
     }

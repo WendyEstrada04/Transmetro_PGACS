@@ -114,3 +114,10 @@ test('la Ruta 5 sigue el orden oficial: sube por el Bulevar La Asunción y regre
         ->and(array_search('Cipreses (dir. Puente de la Penitenciaría)', $nombres))->toBeLessThan(array_search('Puente de la Penitenciaría', $nombres))
         ->and(array_search('Cipreses (dir. Parque Colón)', $nombres))->toBeGreaterThan(array_search('Puente de la Penitenciaría', $nombres));
 });
+
+test('las líneas se listan en su orden natural (L1, L2, L6, L7, L12, L13, L18, R5)', function () {
+    expect(Linea::enOrden()->pluck('codigo_linea')->all())->toBe(['L1', 'L2', 'L6', 'L7', 'L12', 'L13', 'L18', 'R5']);
+
+    $this->actingAs($this->administrador())->get('/mapa')
+        ->assertSeeInOrder(['L1', 'L2', 'L6', 'L7', 'L12', 'L13', 'L18', 'R5']);
+});

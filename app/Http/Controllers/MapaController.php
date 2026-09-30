@@ -17,7 +17,7 @@ class MapaController extends Controller
     {
         $lineas = Linea::with(['estaciones', 'horarios'])
             ->withCount('buses')
-            ->orderBy('codigo_linea')
+            ->enOrden()
             ->get();
 
         return view('mapa', [

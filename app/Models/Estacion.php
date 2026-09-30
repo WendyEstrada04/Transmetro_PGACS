@@ -49,7 +49,8 @@ class Estacion extends Model
     public function lineas(): BelongsToMany
     {
         return $this->belongsToMany(Linea::class, 'linea_estacion', 'id_estacion', 'id_linea')
-            ->withPivot('orden_parada', 'distancia_previa_km');
+            ->withPivot('orden_parada', 'distancia_previa_km')
+            ->orderByRaw(Linea::ORDEN_SQL);
     }
 
     public function accesos(): HasMany

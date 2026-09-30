@@ -28,7 +28,7 @@ class LineaController extends Controller
     public function index(): View
     {
         return view('admin.lineas.index', [
-            'lineas' => Linea::with('municipio')->withCount(['estaciones', 'buses'])->orderBy('codigo_linea')->get(),
+            'lineas' => Linea::with('municipio')->withCount(['estaciones', 'buses'])->enOrden()->get(),
         ]);
     }
 
