@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Transmetro - Línea 1</name>
+    <description>San Sebastián Z.1 / Centro Cívico Z.1</description>
+    <Style id="icon-1899-DB4436-normal">
+      <IconStyle>
+        <color>ff3644db</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+        <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels"/>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0</scale>
+      </LabelStyle>
+    </Style>
+    <Style id="icon-1899-DB4436-highlight">
+      <IconStyle>
+        <color>ff3644db</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+        <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels"/>
+      </IconStyle>
+      <LabelStyle>
+        <scale>1</scale>
+      </LabelStyle>
+    </Style>
+    <StyleMap id="icon-1899-DB4436">
+      <Pair>
+        <key>normal</key>
+        <styleUrl>#icon-1899-DB4436-normal</styleUrl>
+      </Pair>
+      <Pair>
+        <key>highlight</key>
+        <styleUrl>#icon-1899-DB4436-highlight</styleUrl>
+      </Pair>
+    </StyleMap>
+    <Style id="line-673AB7-3000-nodesc-normal">
+      <LineStyle>
+        <color>ffb73a67</color>
+        <width>3</width>
+      </LineStyle>
+      <BalloonStyle>
+        <text><![CDATA[<h3>$[name]</h3>]]></text>
+      </BalloonStyle>
+    </Style>
+    <Style id="line-673AB7-3000-nodesc-highlight">
+      <LineStyle>
+        <color>ffb73a67</color>
+        <width>4.5</width>
+      </LineStyle>
+      <BalloonStyle>
+        <text><![CDATA[<h3>$[name]</h3>]]></text>
+      </BalloonStyle>
+    </Style>
+    <StyleMap id="line-673AB7-3000-nodesc">
+      <Pair>
+        <key>normal</key>
+        <styleUrl>#line-673AB7-3000-nodesc-normal</styleUrl>
+      </Pair>
+      <Pair>
+        <key>highlight</key>
+        <styleUrl>#line-673AB7-3000-nodesc-highlight</styleUrl>
+      </Pair>
+    </StyleMap>
+    <Folder>
+      <name>TRANSMETRO - Línea 1</name>
+      <Placemark>
+        <name>San Sebastián - Líneas 1 y 2</name>
+        <description>3ª calle y 6ª avenida, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.51309,14.645822,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Gómez Carrillo</name>
+        <description>5ª avenida y 14 calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.515788,14.634535,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>San Agustín</name>
+        <description>5ª avenida y 11 calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.515297,14.638467,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Parque Centenario</name>
+        <description>5ª avenida y 8ª calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.514804,14.642065,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Mercado Central</name>
+        <description>8ª avenida y 6ª calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.511501,14.642337,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Correos</name>
+        <description>8ª avenida y 12 calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.512248,14.637162,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Beatas de Belén</name>
+        <description>8ª avenida y 15 calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.512679,14.633918,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Paseo de las Letras</name>
+        <description>8ª avenida y 19 calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.513335,14.629904,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Centro Cívico</name>
+        <description>21 calle y 6ª avenida “A”, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.514819,14.627727,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Sur 2</name>
+        <description>5ª avenida y 18 calle, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.516288,14.631314,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Línea 1</name>
+        <styleUrl>#line-673AB7-3000-nodesc</styleUrl>
+        <LineString>
+          <tessellate>1</tessellate>
+          <coordinates>
+            -90.514879,14.627752,0
+            -90.515049,14.627789,0
+            -90.515203,14.627855,0
+            -90.515413,14.62801,0
+            -90.515731,14.628371,0
+            -90.516072,14.62873,0
+            -90.516289,14.62899,0
+            -90.516387,14.629129,0
+            -90.516424,14.62921,0
+            -90.516442,14.629299,0
+            -90.516466,14.629583,0
+            -90.516431,14.629909,0
+            -90.516367,14.630596,0
+            -90.516313,14.630984,0
+            -90.516216,14.631549,0
+            -90.516021,14.633024,0
+            -90.515917,14.63376,0
+            -90.515839,14.634499,0
+            -90.515708,14.635484,0
+            -90.515647,14.636003,0
+            -90.515562,14.636545,0
+            -90.515295,14.638526,0
+            -90.514827,14.642083,0
+            -90.514514,14.644306,0
+            -90.514295,14.645995,0
+            -90.512687,14.645732,0
+            -90.511102,14.645482,0
+            -90.511149,14.645092,0
+            -90.511211,14.644656,0
+            -90.511317,14.643861,0
+            -90.511531,14.642267,0
+            -90.51154,14.642176,0
+            -90.511469,14.642151,0
+            -90.5115,14.641945,0
+            -90.511576,14.641428,0
+            -90.511643,14.640946,0
+            -90.511712,14.64095,0
+            -90.511738,14.640798,0
+            -90.511849,14.640014,0
+            -90.511954,14.639199,0
+            -90.512066,14.638384,0
+            -90.512178,14.637628,0
+            -90.512263,14.63699,0
+            -90.512355,14.636352,0
+            -90.512482,14.635452,0
+            -90.512588,14.634592,0
+            -90.512708,14.633731,0
+            -90.512832,14.632879,0
+            -90.513031,14.631472,0
+            -90.513258,14.630246,0
+            -90.513264,14.630213,0
+            -90.513304,14.630052,0
+            -90.513316,14.629966,0
+            -90.513604,14.627861,0
+            -90.51364,14.627561,0
+            -90.513768,14.627573,0
+            -90.513888,14.627572,0
+            -90.513946,14.627565,0
+            -90.514012,14.627538,0
+            -90.514127,14.627469,0
+            -90.51424,14.627378,0
+            -90.51426,14.627402,0
+            -90.514269,14.627456,0
+            -90.514287,14.627496,0
+            -90.514304,14.627531,0
+            -90.514372,14.627613,0
+            -90.514401,14.627638,0
+            -90.514441,14.627664,0
+            -90.514544,14.627703,0
+            -90.514651,14.627719,0
+            -90.514879,14.627752,0
+          </coordinates>
+        </LineString>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>

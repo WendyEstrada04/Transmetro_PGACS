@@ -69,13 +69,15 @@ test('también acepta el archivo KMZ que descarga Google My Maps', function () {
 });
 
 test('rechaza archivos que no son KML', function (string $nombre, string $contenido) {
+    $antes = $this->linea->trazo;
+
     $this->actingAs($this->administrador())
         ->post(route('admin.lineas.trazo.importar', $this->linea), [
             'kml' => UploadedFile::fake()->createWithContent($nombre, $contenido),
         ])
         ->assertSessionHasErrors('kml');
 
-    expect($this->linea->refresh()->trazo)->toBeNull();
+    expect($this->linea->refresh()->trazo)->toBe($antes);
 })->with([
     'otra extensión' => ['mapa.pdf', '%PDF-1.4'],
     'KML dañado' => ['mapa.kml', '<kml><Document>'],

@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>Transmetro - Línea 2</name>
+    <description>Hipódromo del Norte Z.2 / San Sebastián Z.1</description>
+    <Style id="icon-1899-DB4436-normal">
+      <IconStyle>
+        <color>ff3644db</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+        <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels"/>
+      </IconStyle>
+      <LabelStyle>
+        <scale>0</scale>
+      </LabelStyle>
+    </Style>
+    <Style id="icon-1899-DB4436-highlight">
+      <IconStyle>
+        <color>ff3644db</color>
+        <scale>1</scale>
+        <Icon>
+          <href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+        </Icon>
+        <hotSpot x="32" xunits="pixels" y="64" yunits="insetPixels"/>
+      </IconStyle>
+      <LabelStyle>
+        <scale>1</scale>
+      </LabelStyle>
+    </Style>
+    <StyleMap id="icon-1899-DB4436">
+      <Pair>
+        <key>normal</key>
+        <styleUrl>#icon-1899-DB4436-normal</styleUrl>
+      </Pair>
+      <Pair>
+        <key>highlight</key>
+        <styleUrl>#icon-1899-DB4436-highlight</styleUrl>
+      </Pair>
+    </StyleMap>
+    <Style id="poly-CE93D8-4000-0-nodesc-normal">
+      <LineStyle>
+        <color>ffd893ce</color>
+        <width>4</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>00d893ce</color>
+        <fill>1</fill>
+        <outline>1</outline>
+      </PolyStyle>
+      <BalloonStyle>
+        <text><![CDATA[<h3>$[name]</h3>]]></text>
+      </BalloonStyle>
+    </Style>
+    <Style id="poly-CE93D8-4000-0-nodesc-highlight">
+      <LineStyle>
+        <color>ffd893ce</color>
+        <width>6</width>
+      </LineStyle>
+      <PolyStyle>
+        <color>00d893ce</color>
+        <fill>1</fill>
+        <outline>1</outline>
+      </PolyStyle>
+      <BalloonStyle>
+        <text><![CDATA[<h3>$[name]</h3>]]></text>
+      </BalloonStyle>
+    </Style>
+    <StyleMap id="poly-CE93D8-4000-0-nodesc">
+      <Pair>
+        <key>normal</key>
+        <styleUrl>#poly-CE93D8-4000-0-nodesc-normal</styleUrl>
+      </Pair>
+      <Pair>
+        <key>highlight</key>
+        <styleUrl>#poly-CE93D8-4000-0-nodesc-highlight</styleUrl>
+      </Pair>
+    </StyleMap>
+    <Folder>
+      <name>TRANSMETRO - Línea 2</name>
+      <Placemark>
+        <name>Simeón Cañas</name>
+        <description>Avenida Simeón Cañas y 7ª calle, zona 2.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.51188,14.65395,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Hipódromo del Norte</name>
+        <description>Avenida Simeón Cañas y 11 calle, zona 2.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.50978,14.659543,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>San José de la Montaña</name>
+        <description>Avenida Simeón Cañas y 6ª calle, zona 2.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.511943,14.653842,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Jocotenango</name>
+        <description>6ª avenida entre 3ª y 4ª calle, zona 2.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.513118,14.65101,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>San Sebastián - Líneas 1 y 2</name>
+        <description>3ª calle y 6ª avenida, zona 1.</description>
+        <styleUrl>#icon-1899-DB4436</styleUrl>
+        <Point>
+          <coordinates>
+            -90.51309,14.645822,0
+          </coordinates>
+        </Point>
+      </Placemark>
+      <Placemark>
+        <name>Línea 2</name>
+        <styleUrl>#poly-CE93D8-4000-0-nodesc</styleUrl>
+        <Polygon>
+          <outerBoundaryIs>
+            <LinearRing>
+              <tessellate>1</tessellate>
+              <coordinates>
+                -90.513152,14.650953,0
+                -90.513175,14.650726,0
+                -90.513171,14.650632,0
+                -90.513132,14.650547,0
+                -90.513061,14.650494,0
+                -90.512987,14.650475,0
+                -90.512919,14.650464,0
+                -90.512812,14.650444,0
+                -90.512873,14.649912,0
+                -90.512937,14.649354,0
+                -90.513053,14.648377,0
+                -90.513082,14.648134,0
+                -90.513124,14.647838,0
+                -90.513279,14.646676,0
+                -90.513287,14.64661,0
+                -90.51329,14.646544,0
+                -90.513393,14.645866,0
+                -90.512647,14.645752,0
+                -90.511984,14.64565,0
+                -90.511946,14.645646,0
+                -90.511907,14.645931,0
+                -90.511858,14.646229,0
+                -90.511814,14.646578,0
+                -90.511753,14.646932,0
+                -90.511616,14.647786,0
+                -90.511424,14.649234,0
+                -90.511364,14.649675,0
+                -90.511339,14.649893,0
+                -90.511316,14.650121,0
+                -90.511283,14.650351,0
+                -90.511176,14.651081,0
+                -90.511078,14.651814,0
+                -90.511067,14.651881,0
+                -90.511756,14.651939,0
+                -90.511887,14.65195,0
+                -90.512016,14.651961,0
+                -90.512078,14.651994,0
+                -90.512179,14.652036,0
+                -90.512226,14.652075,0
+                -90.512268,14.65214,0
+                -90.512302,14.652242,0
+                -90.512331,14.65239,0
+                -90.512283,14.652444,0
+                -90.512256,14.652503,0
+                -90.512231,14.652597,0
+                -90.512172,14.65293,0
+                -90.512113,14.653215,0
+                -90.512082,14.653424,0
+                -90.511824,14.654089,0
+                -90.51152,14.654878,0
+                -90.510434,14.657746,0
+                -90.510114,14.658645,0
+                -90.509778,14.659543,0
+                -90.509796,14.659547,0
+                -90.509903,14.659265,0
+                -90.510003,14.659004,0
+                -90.510211,14.658436,0
+                -90.510284,14.658236,0
+                -90.510358,14.658028,0
+                -90.51051,14.657615,0
+                -90.510564,14.657467,0
+                -90.510616,14.657333,0
+                -90.51071,14.657083,0
+                -90.510897,14.656584,0
+                -90.510989,14.656345,0
+                -90.51108,14.656098,0
+                -90.511269,14.655595,0
+                -90.511322,14.655459,0
+                -90.511392,14.655281,0
+                -90.51151,14.65497,0
+                -90.511576,14.654794,0
+                -90.511655,14.654592,0
+                -90.511795,14.654218,0
+                -90.511842,14.654098,0
+                -90.511896,14.65396,0
+                -90.511984,14.653735,0
+                -90.512089,14.653453,0
+                -90.512123,14.653367,0
+                -90.512177,14.653275,0
+                -90.512282,14.653057,0
+                -90.512355,14.652874,0
+                -90.512406,14.652731,0
+                -90.512464,14.652564,0
+                -90.512505,14.652449,0
+                -90.512508,14.652403,0
+                -90.512503,14.652357,0
+                -90.512479,14.652266,0
+                -90.512616,14.652149,0
+                -90.512748,14.652027,0
+                -90.512813,14.651964,0
+                -90.51284,14.651943,0
+                -90.512885,14.651942,0
+                -90.512934,14.651936,0
+                -90.512982,14.651914,0
+                -90.513028,14.651889,0
+                -90.513051,14.651692,0
+                -90.513079,14.651515,0
+                -90.513152,14.650953,0
+              </coordinates>
+            </LinearRing>
+          </outerBoundaryIs>
+        </Polygon>
+      </Placemark>
+    </Folder>
+  </Document>
+</kml>

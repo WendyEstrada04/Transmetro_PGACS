@@ -44,6 +44,10 @@
             // Si la línea tiene su trazo por las calles se dibuja ese; si no, se unen las estaciones en línea recta.
             const rutas = {};
             const limites = [];
+            // Grosor según el acercamiento: de cerca la línea es delgada para que se vean
+            // por separado los dos sentidos del recorrido (ida y regreso por carriles distintos).
+            const grosor = () => (mapa.getZoom() ?? 13) >= 17 ? 2.5 : ((mapa.getZoom() ?? 13) >= 15 ? 4 : 5);
+            mapa.on('zoomend', () => Object.values(rutas).forEach((r) => r.setStyle({weight: grosor()})));
             lineas.forEach((l) => {
                 let puntos = l.trazo;
                 const porCalles = puntos.length >= 2;
@@ -51,7 +55,7 @@
                     puntos = l.estaciones.map((e) => [e.lat, e.lon]);
                     if (l.circular && puntos.length > 2) puntos.push(puntos[0]);
                 }
-                rutas[l.codigo] = L.polyline(puntos, {color: l.color, weight: 6, opacity: 0.85, dashArray: porCalles ? null : '8 8'})
+                rutas[l.codigo] = L.polyline(puntos, {color: l.color, weight: grosor(), opacity: 0.9, dashArray: porCalles ? null : '8 8'})
                     .bindTooltip(`${esc(l.codigo)} · ${esc(l.nombre)}` + (porCalles ? '' : ' (ruta aproximada, sin trazar)'), {sticky: true})
                     .addTo(mapa);
                 limites.push(...puntos);

@@ -8,10 +8,10 @@ namespace Database\Seeders\Datos;
  * Las líneas, estaciones, horarios y colores están en LineasTransmetro.php (información pública
  * del Transmetro, Municipalidad de Guatemala). Tarjeta Ciudadana: Q20 con 5 viajes gratis;
  * recargas de Q5 a Q200; tarifa Q1.00 (paradas continuas) o Q2.00 (directo).
- * Las coordenadas y distancias entre estaciones son APROXIMADAS, y los buses, el personal,
+ * Estaciones, direcciones, ubicación y recorrido salen de los mapas oficiales (carpeta mapas/); los buses, el personal,
  * las tarjetas y los pagos son datos ficticios para demostrar el sistema.
  *
- * No depende de Laravel: recibe funciones para cifrar y para generar hashes de contraseñas.
+ * Recibe funciones para cifrar y para generar hashes de contraseñas (así se puede probar sin la base de datos).
  */
 class TransmetroDatos
 {
@@ -31,6 +31,53 @@ class TransmetroDatos
     private static function lineas(): array
     {
         return require __DIR__.'/LineasTransmetro.php';
+    }
+
+    /**
+     * Estaciones (en orden), recorrido y distancias de una línea.
+     * Con 'mapa' se leen del mapa oficial; si no, se usan las 'estaciones' escritas a mano.
+     * Cada estación queda como [nombre, dirección, latitud, longitud, km desde la anterior].
+     */
+    private static function completarLinea(array $def): array
+    {
+        if (empty($def['mapa'])) {
+            $puntos = $def['estaciones'];
+            $def['circular'] ??= false;
+            $def['estaciones'] = [];
+            foreach ($puntos as $i => [$nombre, $direccion, $lat, $lon]) {
+                $km = $i > 0 ? self::distanciaKm([$puntos[$i - 1][2], $puntos[$i - 1][3]], [$lat, $lon])
+                    : ($def['circular'] && count($puntos) > 1 ? self::distanciaKm([end($puntos)[2], end($puntos)[3]], [$lat, $lon]) : 0);
+                $def['estaciones'][] = [$nombre, $direccion, $lat, $lon, $km];
+            }
+
+            return $def;
+        }
+
+        $mapa = MapasOficiales::leer($def);
+        $def['circular'] ??= $mapa['circular'];
+        $def['trazo'] = $mapa['trazo'];
+        $lista = $mapa['estaciones'];
+        if (! empty($def['orden'])) {
+            $porNombre = array_column($lista, null, 0);
+            $lista = array_map(fn ($n) => $porNombre[$n] ?? throw new \RuntimeException("La estación {$n} no está en el mapa."), $def['orden']);
+        }
+
+        // Distancia desde la parada anterior medida sobre el recorrido (en la primera, el tramo de regreso).
+        // Con orden manual se estima con la distancia en línea recta × 1.2 (las calles no son rectas).
+        $largo = max($mapa['largo'], 0.001);
+        $n = count($lista);
+        $def['estaciones'] = [];
+        foreach ($lista as $i => [$nombre, $direccion, $lat, $lon, $posicion]) {
+            $anterior = $lista[($i - 1 + $n) % $n];
+            $km = match (true) {
+                $i === 0 && ! $def['circular'] => 0,
+                ! empty($def['orden']) => 1.2 * self::distanciaKm([$anterior[2], $anterior[3]], [$lat, $lon]),
+                default => fmod($posicion - $anterior[4] + $largo, $largo),
+            };
+            $def['estaciones'][] = [$nombre, $direccion, $lat, $lon, round($km, 2)];
+        }
+
+        return $def;
     }
 
     /**
@@ -66,50 +113,56 @@ class TransmetroDatos
         }
 
         // ---------------- ESTACIONES, LÍNEAS, RECORRIDOS Y HORARIOS ----------------
+        // Primero se lee cada línea (mapa oficial o lista manual) para saber qué estaciones son
+        // terminales o de transbordo (en ellas: aforo 300 y 3 accesos).
+        $definiciones = [];
+        $usos = [];
+        foreach (self::lineas() as $codigo => $def) {
+            $def = self::completarLinea($def);
+            if (! empty($trazos[$codigo]['trazo'])) {
+                $def['trazo'] = $trazos[$codigo]['trazo']; // trazo ajustado y guardado desde la app
+            }
+            $definiciones[$codigo] = $def;
+            foreach ($def['estaciones'] as $i => [$nombre]) {
+                $usos[$nombre] = ($usos[$nombre] ?? 0) + ($i === 0 ? 2 : 1);
+            }
+        }
+        $principal = fn (string $nombre) => ($usos[$nombre] ?? 0) >= 2;
+
         $estaciones = $lineas = $lineaEstacion = $horarios = [];
         $est = [];          // nombre => id
         $lineaDeEstacion = []; // id_estacion => codigo de línea
+        $ubicacion = [];    // nombre => [lat, lon] (para no juntar estaciones distintas con el mismo nombre)
         $lin = [];
-        foreach (self::lineas() as $codigo => $def) {
+        foreach ($definiciones as $codigo => $def) {
             $idLinea = $uuid();
-            $lin[$codigo] = ['id' => $idLinea, 'paradas' => [], 'buses' => $def['buses'], 'capacidad' => $def['capacidad']];
+            $lin[$codigo] = ['id' => $idLinea, 'paradas' => [], 'buses' => $def['buses'], 'capacidad' => $def['capacidad'],
+                'terminal' => $def['estaciones'][0][0]];
             $lineas[] = ['id_linea' => $idLinea, 'id_municipio' => $mun['Guatemala'], 'codigo_linea' => $codigo,
                 'nombre' => $def['nombre'], 'tipo_servicio' => $def['tipo_servicio'], 'tarifa' => $def['tarifa'],
                 'color' => $def['color'], 'ruta_circular' => $def['circular'], 'distancia_total_km' => 0, 'estado' => 'activa',
-                'trazo' => empty($trazos[$codigo]['trazo']) ? null : json_encode($trazos[$codigo]['trazo'])];
+                'trazo' => empty($def['trazo']) ? null : json_encode($def['trazo'])];
             foreach ($def['horario'] as $tipoDia => [$inicio, $fin]) {
                 $horarios[] = ['id_horario' => $uuid(), 'id_linea' => $idLinea, 'tipo_dia' => $tipoDia,
                     'hora_inicio' => $inicio, 'hora_fin' => $fin];
             }
 
-            // Coordenadas aproximadas por tramos para las estaciones que no traen latitud/longitud.
-            $aprox = [];
-            foreach ($def['tramos'] ?? [] as [$cantidad, $desde, $hasta]) {
-                for ($i = 0; $i < $cantidad; $i++) {
-                    $t = $cantidad === 1 ? 0 : $i / ($cantidad - 1);
-                    $aprox[] = [round($desde[0] + ($hasta[0] - $desde[0]) * $t, 6), round($desde[1] + ($hasta[1] - $desde[1]) * $t, 6)];
+            foreach ($def['estaciones'] as $i => [$nombre, $direccion, $lat, $lon, $km]) {
+                [$lat, $lon] = $ubicacionGuardada[$nombre] ?? [$lat, $lon];
+                if (isset($ubicacion[$nombre]) && self::distanciaKm($ubicacion[$nombre], [$lat, $lon]) > 0.15) {
+                    $nombre .= " ({$codigo})"; // mismo nombre pero otra estación
                 }
-            }
-
-            $puntos = [];
-            foreach ($def['estaciones'] as $i => [$nombre, $direccion, $lat, $lon]) {
-                [$lat, $lon] = $ubicacionGuardada[$nombre] ?? ($lat === null ? $aprox[$i] : [$lat, $lon]);
-                $puntos[] = [$lat, $lon];
                 if (! isset($est[$nombre])) {
                     $est[$nombre] = $uuid();
-                    $aforo = in_array($nombre, ['San Sebastián', 'Centro Cívico', 'Hipódromo del Norte', 'Proyectos', 'Plaza Barrios/FEGUA'], true) ? 300 : mt_rand(12, 22) * 10;
-                    $estaciones[] = ['id_estacion' => $est[$nombre], 'id_municipio' => $mun['Guatemala'], 'nombre' => $nombre,
+                    $ubicacion[$nombre] = [$lat, $lon];
+                    $aforo = $principal($nombre) ? 300 : mt_rand(12, 22) * 10;
+                    $municipio = str_contains((string) $direccion, 'Villa Nueva') ? 'Villa Nueva'
+                        : (str_contains((string) $direccion, 'Mixco') ? 'Mixco' : 'Guatemala');
+                    $estaciones[] = ['id_estacion' => $est[$nombre], 'id_municipio' => $mun[$municipio], 'nombre' => $nombre,
                         'direccion' => $direccion, 'aforo_maximo' => $aforo, 'aforo_actual' => intdiv($aforo * mt_rand(15, 90), 100),
                         'latitud' => $lat, 'longitud' => $lon];
                 }
                 $lineaDeEstacion[$est[$nombre]] ??= $codigo;
-            }
-
-            // Distancia desde la parada anterior; en rutas circulares la primera parada cuenta el tramo de regreso.
-            $n = count($puntos);
-            foreach ($def['estaciones'] as $i => [$nombre]) {
-                $km = $i > 0 ? self::distanciaKm($puntos[$i - 1], $puntos[$i])
-                    : ($def['circular'] && $n > 1 ? self::distanciaKm($puntos[$n - 1], $puntos[0]) : 0);
                 $lineaEstacion[] = ['id_linea' => $idLinea, 'id_estacion' => $est[$nombre], 'orden_parada' => $i + 1, 'distancia_previa_km' => $km];
                 $lin[$codigo]['paradas'][] = [$nombre, $i > 0 ? $km : 0];
             }
@@ -137,7 +190,12 @@ class TransmetroDatos
 
         // ---------------- PARQUEOS en las terminales — cada bus con un parqueo ----------------
         $parqueos = [];
-        foreach (['San Sebastián' => 14, 'Centro Cívico' => 6, 'Hipódromo del Norte' => 10, 'Proyectos' => 20] as $estacion => $cantidad) {
+        $bahias = [];
+        foreach ($lin as $l) {
+            $bahias[$l['terminal']] = ($bahias[$l['terminal']] ?? 0) + $l['buses'] + 2; // 2 bahías libres por línea
+        }
+        $bahias[array_key_first($bahias)] += 3; // buses en taller / fuera de servicio
+        foreach ($bahias as $estacion => $cantidad) {
             for ($i = 1; $i <= $cantidad; $i++) {
                 $parqueos[] = ['id_parqueo' => $uuid(), 'id_estacion' => $est[$estacion],
                     'codigo_bahia' => sprintf('B-%02d', $i), 'id_bus_asignado' => null];
@@ -152,7 +210,7 @@ class TransmetroDatos
         $e = 0;
         foreach ($est as $nombre => $idEstacion) {
             $e++;
-            $ubicaciones = in_array($nombre, ['San Sebastián', 'Centro Cívico', 'Hipódromo del Norte', 'Proyectos', 'Plaza Barrios/FEGUA'], true) ? ['Norte', 'Sur', 'Oriente'] : ['Norte', 'Sur'];
+            $ubicaciones = $principal($nombre) ? ['Norte', 'Sur', 'Oriente'] : ['Norte', 'Sur'];
             foreach ($ubicaciones as $k => $ubicacion) {
                 $idAcceso = $uuid();
                 $accesos[] = ['id_acceso' => $idAcceso, 'id_estacion' => $idEstacion, 'ubicacion_fisica' => "Acceso $ubicacion"];

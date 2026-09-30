@@ -74,7 +74,8 @@ class ImportadorKml
             $marca->registerXPathNamespace('k', $xml->getNamespaces()[''] ?? 'http://www.opengis.net/kml/2.2');
             $coordenada = $this->coordenadas((string) ($marca->xpath('k:Point/k:coordinates')[0] ?? ''));
             if ($coordenada) {
-                $puntos[] = ['nombre' => trim((string) $marca->name), 'lat' => $coordenada[0][0], 'lon' => $coordenada[0][1]];
+                $puntos[] = ['nombre' => trim((string) $marca->name), 'descripcion' => trim((string) $marca->description),
+                    'lat' => $coordenada[0][0], 'lon' => $coordenada[0][1]];
             }
         }
 
@@ -88,7 +89,8 @@ class ImportadorKml
     /**
      * Une los tramos en un solo recorrido: empieza por el tramo más cercano a la primera estación
      * y va tomando el tramo cuyo extremo quede más cerca del final actual (dándole vuelta si hace falta).
-     * Si hay empate, se respeta el sentido en que se dibujó cada tramo en el mapa.
+     * Si hay empate, se respeta el sentido en que se dibujó cada tramo en el mapa. Las figuras cerradas
+     * adicionales (ramales, como Plaza Argentina – Plaza Berlín de la L13) se insertan donde tocan el recorrido.
      *
      * @param  list<list<array{0: float, 1: float}>>  $tramos
      * @param  array{0: float, 1: float}|null  $inicio
@@ -100,29 +102,23 @@ class ImportadorKml
             return [];
         }
 
-        // Primer tramo: el que tiene un extremo más cerca de la estación inicial.
+        // Primer tramo: el que tiene un extremo (o, si es una figura cerrada, un punto) más cerca del inicio.
         $actual = $inicio ?? $tramos[0][0];
         $recorrido = [];
         while ($tramos) {
             $mejor = null;
             foreach ($tramos as $i => $tramo) {
-                $cerrado = count($tramo) > 2 && self::km($tramo[0], end($tramo)) < self::UNION_KM / 10;
                 foreach ([false, true] as $alReves) {
-                    if ($cerrado) {
+                    if (self::cerrado($tramo)) {
                         // En una figura cerrada cualquier punto sirve de inicio: se mide al más cercano.
                         if ($alReves) {
                             continue;
                         }
                         $d = min(array_map(fn ($p) => self::km($actual, $p), $tramo));
-                        if ($mejor === null || $d < $mejor[0]) {
-                            $mejor = [$d, $i, false];
-                        }
-
-                        continue;
+                    } else {
+                        // Se prefiere el sentido en que se dibujó el tramo (pequeña penalización al darle vuelta).
+                        $d = self::km($actual, $alReves ? end($tramo) : $tramo[0]) + ($alReves ? self::UNION_KM / 2 : 0);
                     }
-                    $extremo = $alReves ? end($tramo) : $tramo[0];
-                    // Se prefiere el sentido en que se dibujó el tramo (pequeña penalización al darle vuelta).
-                    $d = self::km($actual, $extremo) + ($alReves ? self::UNION_KM / 2 : 0);
                     if ($mejor === null || $d < $mejor[0]) {
                         $mejor = [$d, $i, $alReves];
                     }
@@ -132,21 +128,18 @@ class ImportadorKml
             $tramo = $alReves ? array_reverse($tramos[$i]) : $tramos[$i];
             unset($tramos[$i]);
 
-            // Figura cerrada (ruta circular): se "abre" en el punto más cercano y se recorre completa.
-            if (count($tramo) > 2 && self::km($tramo[0], end($tramo)) < self::UNION_KM / 10) {
-                array_pop($tramo);
-                $cerca = 0;
-                foreach ($tramo as $k => $punto) {
-                    if (self::km($actual, $punto) < self::km($actual, $tramo[$cerca])) {
-                        $cerca = $k;
-                    }
-                }
-                $tramo = array_merge(array_slice($tramo, $cerca), array_slice($tramo, 0, $cerca));
-                $tramo[] = $tramo[0];
-            }
+            if (self::cerrado($tramo)) {
+                $tramo = self::abrirEn($tramo, $actual);
+                if ($recorrido) {
+                    // Ramal o figura cerrada adicional: se inserta donde toca el recorrido (va y regresa)
+                    // en lugar de pegarlo al final, para no dibujar saltos en línea recta.
+                    [$j, $tramo] = self::puntoDeUnion($recorrido, $tramo);
+                    array_splice($recorrido, $j + 1, 0, array_merge($tramo, [$recorrido[$j]]));
 
-            // Si el tramo empieza donde terminó el anterior, no se repite ese punto.
-            if ($recorrido && self::km(end($recorrido), $tramo[0]) < self::UNION_KM / 10) {
+                    continue;
+                }
+            } elseif ($recorrido && self::km(end($recorrido), $tramo[0]) < self::UNION_KM / 10) {
+                // Si el tramo empieza donde terminó el anterior, no se repite ese punto.
                 array_shift($tramo);
             }
             array_push($recorrido, ...$tramo);
@@ -156,13 +149,72 @@ class ImportadorKml
         return array_values($recorrido);
     }
 
-    /** Busca la estación de la línea que corresponde al nombre de un punto del mapa. */
+    /** ¿El tramo termina donde empieza (figura cerrada)? */
+    private static function cerrado(array $tramo): bool
+    {
+        return count($tramo) > 2 && self::km($tramo[0], end($tramo)) < self::UNION_KM / 10;
+    }
+
+    /** Recorre la figura cerrada empezando en su punto más cercano a $cerca (y la vuelve a cerrar). */
+    private static function abrirEn(array $anillo, array $cerca): array
+    {
+        array_pop($anillo);
+        $k = 0;
+        foreach ($anillo as $n => $punto) {
+            if (self::km($cerca, $punto) < self::km($cerca, $anillo[$k])) {
+                $k = $n;
+            }
+        }
+        $anillo = array_merge(array_slice($anillo, $k), array_slice($anillo, 0, $k));
+        $anillo[] = $anillo[0];
+
+        return $anillo;
+    }
+
+    /**
+     * Busca el par de puntos más cercanos entre el recorrido y una figura cerrada.
+     *
+     * @return array{0: int, 1: list<array{0: float, 1: float}>} índice en el recorrido y figura abierta en ese punto
+     */
+    private static function puntoDeUnion(array $recorrido, array $anillo): array
+    {
+        $mejor = [INF, 0, 0];
+        foreach ($recorrido as $j => $p) {
+            foreach ($anillo as $k => $q) {
+                // Descarte rápido antes de calcular la distancia exacta.
+                if (abs($p[0] - $q[0]) > 0.01 && $mejor[0] < INF) {
+                    continue;
+                }
+                $d = self::km($p, $q);
+                if ($d < $mejor[0]) {
+                    $mejor = [$d, $j, $k];
+                }
+            }
+        }
+
+        return [$mejor[1], self::abrirEn($anillo, $anillo[$mejor[2]])];
+    }
+
+    /**
+     * Nombre limpio de una estación del mapa oficial:
+     * "San Sebastián - Líneas 1 y 2" → "San Sebastián"; "Bolívar - Dir. Centra Sur" → "Bolívar (dir. Centra Sur)";
+     * "Estación Parque Colón" → "Parque Colón".
+     */
+    public static function nombreLimpio(string $nombre): string
+    {
+        $nombre = trim(preg_replace('/\s+/u', ' ', $nombre));
+        $nombre = preg_replace('/\s+-\s+L[ií]neas?\s.*$/iu', '', $nombre);
+        $nombre = preg_replace('/\s+-\s+Dir\.\s*(.+)$/iu', ' (dir. $1)', $nombre);
+        $nombre = preg_replace('/^Estaci[oó]n\s+/iu', '', $nombre);
+
+        return trim($nombre);
+    }
+
+    /** Clave para reconocer la misma estación aunque el nombre cambie un poco ("Francos y Monroy" = "Francos Monroy"). */
     public static function nombreNormalizado(string $nombre): string
     {
-        // "San Sebastián - Líneas 1 y 2" → "sansebastian"; "Francos y Monroy" = "Francos Monroy".
-        $nombre = preg_split('/\s[-–]\s/u', $nombre)[0];
-        $nombre = Str::lower(Str::ascii($nombre));
-        $nombre = preg_replace('/\b(y|estacion|transmetro)\b/', ' ', $nombre);
+        $nombre = Str::lower(Str::ascii(self::nombreLimpio($nombre)));
+        $nombre = preg_replace('/\b(y|dir)\b/', ' ', $nombre);
 
         return preg_replace('/[^a-z0-9]/', '', $nombre);
     }

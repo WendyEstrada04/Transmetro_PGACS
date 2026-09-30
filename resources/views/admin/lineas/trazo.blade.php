@@ -28,7 +28,9 @@
             <li>En Google My Maps abre el menú <b>⋮</b> (junto al título del mapa) → <b>Descargar KML</b> →
                 deja "Todo el mapa" → <b>Descargar</b>. Se guarda un archivo <b>.kmz</b> en tu carpeta Descargas.</li>
             <li>Elige ese archivo aquí abajo y presiona <b>Importar mapa oficial</b>: se copian el recorrido completo y la
-                ubicación exacta de cada estación. Luego revisa y, si algo falta, corrígelo con las herramientas de abajo.</li>
+                ubicación exacta de cada estación.</li>
+            <li>Presiona <b>Ajustar a las calles del mapa</b>: la línea se acomoda sobre las calles de este mapa
+                (OpenStreetMap dibuja las calles unos metros distinto que Google). Revisa y presiona <b>Guardar trazo</b>.</li>
         </ol>
         <form method="POST" action="{{ route('admin.lineas.trazo.importar', $linea) }}" enctype="multipart/form-data"
               class="flex flex-wrap items-center gap-3">
@@ -79,6 +81,8 @@
         <button type="button" id="btn-deshacer" class="btn btn-secundario btn-chico">Deshacer tramo</button>
         <button type="button" id="btn-cerrar" class="btn btn-secundario btn-chico">Cerrar recorrido</button>
         <button type="button" id="btn-borrar" class="btn btn-peligro btn-chico">Borrar trazo</button>
+        <button type="button" id="btn-ajustar" class="btn btn-primario btn-chico"
+                title="Acomoda todo el recorrido sobre las calles de este mapa (OpenStreetMap)">Ajustar a las calles del mapa</button>
 
         <form method="POST" action="{{ route('admin.lineas.trazo.update', $linea) }}" id="form-trazo" class="ml-auto">
             @csrf
@@ -130,7 +134,9 @@
             let tramos = trazoGuardado.length ? [trazoGuardado] : [];
             let cambios = false;
             let ocupado = false;
-            const linea = L.polyline([], {color, weight: 6, opacity: 0.9}).addTo(mapa);
+            const grosor = () => (mapa.getZoom() ?? 13) >= 17 ? 2.5 : ((mapa.getZoom() ?? 13) >= 15 ? 4 : 5);
+            const linea = L.polyline([], {color, weight: grosor(), opacity: 0.9}).addTo(mapa);
+            mapa.on('zoomend', () => linea.setStyle({weight: grosor()}));
             const inicio = L.circleMarker([0, 0], {radius: 5, color: '#111827', fillColor: color, fillOpacity: 1});
 
             const puntos = () => tramos.flat();
@@ -233,7 +239,76 @@
             $('modo-dibujar').addEventListener('click', () => cambiarModo('dibujar'));
             $('modo-mover').addEventListener('click', () => cambiarModo('mover'));
 
+            // ---------- Ajustar todo el recorrido a las calles de OpenStreetMap (map matching con OSRM) ----------
+            // El recorrido oficial está dibujado sobre Google Maps; aquí se "pega" a las calles de OpenStreetMap
+            // para que quede exactamente sobre las vías que se ven en este mapa.
+            const EMPAREJAR = {
+                carro: (c, r) => `https://router.project-osrm.org/match/v1/driving/${c}?geometries=geojson&overview=full&gaps=ignore&radiuses=${r}`,
+                pie: (c, r) => `https://routing.openstreetmap.de/routed-foot/match/v1/foot/${c}?geometries=geojson&overview=full&gaps=ignore&radiuses=${r}`,
+            };
+            const PASO_KM = 0.03;   // un punto cada 30 m para que el ajuste siga bien las esquinas
+            const POR_CONSULTA = 80; // puntos por consulta al servicio
+            let referencia = null;   // recorrido antes del ajuste (línea gris punteada para comparar)
+
+            const densificar = (p) => {
+                const salida = [p[0]];
+                for (let i = 1; i < p.length; i++) {
+                    const n = Math.max(1, Math.ceil(km([p[i - 1], p[i]]) / PASO_KM));
+                    for (let k = 1; k <= n; k++) {
+                        salida.push(redondear([p[i - 1][0] + (p[i][0] - p[i - 1][0]) * k / n, p[i - 1][1] + (p[i][1] - p[i - 1][1]) * k / n]));
+                    }
+                }
+                return salida;
+            };
+
+            const emparejar = async (trozo, perfil) => {
+                const coordenadas = trozo.map((q) => `${q[1]},${q[0]}`).join(';');
+                const radios = trozo.map(() => 25).join(';');
+                try {
+                    const datos = await (await fetch(EMPAREJAR[perfil](coordenadas, radios))).json();
+                    if (datos.code !== 'Ok' || !datos.matchings?.length) return null;
+                    const camino = datos.matchings.flatMap((m) => m.geometry.coordinates.map(([lon, lat]) => redondear([lat, lon])));
+                    // Si el resultado da un rodeo (mucho más largo que el tramo original), no se usa.
+                    return camino.length >= 2 && km(camino) <= km(trozo) * 1.25 + 0.05 ? camino : null;
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const ajustarACalles = async () => {
+                const original = puntos();
+                if (original.length < 2) return estado('Primero importa el mapa oficial o dibuja el recorrido.');
+                if (ocupado) return;
+                ocupado = true;
+                $('btn-ajustar').disabled = true;
+
+                const denso = densificar(original);
+                const resultado = [];
+                let sinAjuste = 0;
+                for (let i = 0; i < denso.length - 1; i += POR_CONSULTA - 1) {
+                    const trozo = denso.slice(i, i + POR_CONSULTA);
+                    estado(`Ajustando a las calles… ${Math.round(100 * i / denso.length)} %`);
+                    let camino = await emparejar(trozo, 'carro');
+                    if (!camino) camino = await emparejar(trozo, 'pie');
+                    if (!camino) { camino = trozo; sinAjuste++; }
+                    resultado.push(...camino);
+                    await new Promise((listo) => setTimeout(listo, 250)); // no saturar el servicio gratuito
+                }
+
+                referencia?.remove();
+                referencia = L.polyline(original, {color: '#111827', weight: 1.5, opacity: 0.6, dashArray: '4 6'}).addTo(mapa);
+                tramos = [resultado];
+                cambios = true;
+                ocupado = false;
+                $('btn-ajustar').disabled = false;
+                dibujar();
+                estado(sinAjuste
+                    ? `Listo, pero ${sinAjuste} parte(s) no se pudieron ajustar (sin internet o servicio ocupado) y quedaron como el original. Puedes volver a intentarlo.`
+                    : 'Listo: el recorrido quedó sobre las calles del mapa. La línea gris punteada es el original. Revisa y presiona Guardar trazo (o recarga la página para descartar).');
+            };
+
             // ---------- Botones ----------
+            $('btn-ajustar').addEventListener('click', ajustarACalles);
             $('btn-deshacer').addEventListener('click', () => { if (!ocupado && tramos.length) { tramos.pop(); cambios = true; dibujar(); } });
             $('btn-borrar').addEventListener('click', () => {
                 if (tramos.length && confirm('¿Borrar todo el trazo dibujado?')) { tramos = []; cambios = true; dibujar(); }

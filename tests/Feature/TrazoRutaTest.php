@@ -66,11 +66,13 @@ test('un trazo vacío borra el trazo de la línea', function () {
 });
 
 test('se rechazan puntos fuera de Guatemala o mal formados', function (string $trazo) {
+    $antes = $this->linea->trazo;
+
     $this->actingAs($this->administrador())
         ->put(route('admin.lineas.trazo.update', $this->linea), ['trazo' => $trazo])
         ->assertSessionHasErrors('trazo');
 
-    expect($this->linea->refresh()->trazo)->toBeNull();
+    expect($this->linea->refresh()->trazo)->toBe($antes);
 })->with([
     'fuera del país' => ['[[40.4, -3.7], [40.5, -3.6]]'],
     'un solo punto' => ['[[14.64, -90.51]]'],
