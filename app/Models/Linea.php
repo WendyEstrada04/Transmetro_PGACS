@@ -31,6 +31,7 @@ class Linea extends Model
         'tarifa',
         'color',
         'ruta_circular',
+        'trazo',
     ];
 
     public const TIPOS_SERVICIO = [
@@ -44,7 +45,22 @@ class Linea extends Model
             'distancia_total_km' => 'decimal:2',
             'tarifa' => 'decimal:2',
             'ruta_circular' => 'boolean',
+            'trazo' => 'array',
         ];
+    }
+
+    /** Color de letra legible sobre el color de la línea (negro sobre colores claros como el amarillo de la L6). */
+    public function colorTexto(): string
+    {
+        [$r, $g, $b] = sscanf($this->color ?: '#155240', '#%02x%02x%02x');
+
+        return (0.299 * $r + 0.587 * $g + 0.114 * $b) / 255 > 0.6 ? '#111827' : '#ffffff';
+    }
+
+    /** ¿La ruta ya tiene su trazo por las calles? */
+    public function tieneTrazo(): bool
+    {
+        return is_array($this->trazo) && count($this->trazo) >= 2;
     }
 
     public function municipio(): BelongsTo

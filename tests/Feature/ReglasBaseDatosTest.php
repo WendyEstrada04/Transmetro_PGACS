@@ -81,7 +81,7 @@ test('punto 5: una línea no puede tener más del doble de buses que de estacion
 });
 
 test('punto 14: al pasar del 150 % del aforo se crea una alerta de refuerzo', function () {
-    $estacion = Estacion::where('nombre', 'San Sebastián')->firstOrFail();
+    $estacion = Estacion::where('nombre', 'Centro Cívico')->firstOrFail();
     $estacion->update(['aforo_actual' => 0]);
     $antes = AlertaSistema::where('id_estacion', $estacion->id_estacion)->count();
 
@@ -97,7 +97,7 @@ test('punto 14: al pasar del 150 % del aforo se crea una alerta de refuerzo', fu
 });
 
 test('punto 14: si la estación sigue saturada no se repite la alerta', function () {
-    $estacion = Estacion::where('nombre', 'Plaza Barrios')->firstOrFail();
+    $estacion = Estacion::where('nombre', 'San Sebastián')->firstOrFail();
     expect($estacion->requiereRefuerzo())->toBeTrue();
     $antes = AlertaSistema::where('id_estacion', $estacion->id_estacion)->count();
 
@@ -107,7 +107,7 @@ test('punto 14: si la estación sigue saturada no se repite la alerta', function
 });
 
 test('punto 13: la distancia total de la línea es la suma de sus tramos', function () {
-    $linea = Linea::where('codigo_linea', 'L12')->firstOrFail();
+    $linea = Linea::where('codigo_linea', 'L2')->firstOrFail();
     $suma = (float) DB::table('linea_estacion')->where('id_linea', $linea->id_linea)->sum('distancia_previa_km');
 
     expect((float) $linea->distancia_total_km)->toEqualWithDelta($suma, 0.001);

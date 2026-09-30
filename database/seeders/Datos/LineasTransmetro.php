@@ -13,9 +13,9 @@
  *  - L2: página oficial muniguate.com/movilidadurbana/linea-2 y su mapa de Google My Maps
  *    (estaciones, orden, direcciones, transbordo y horario). Coordenadas aproximadas medidas sobre ese mapa.
  *    Recorrido: sube por la 7a. avenida y la Av. Simeón Cañas; baja por la Av. Simeón Cañas y la 6a. avenida.
+ *  - L6: página oficial muniguate.com/movilidadurbana/linea-6 y su mapa de Google My Maps (estaciones,
+ *    orden, direcciones y horario). Coordenadas aproximadas: ajustarlas con "Mover estaciones" en el editor del trazo.
  *  - Colores: los oficiales de la página "Información por línea" de muniguate.com.
- *  - L12 y L13: listas de estaciones de transmetroguatemala.com (sitio no oficial);
- *    horario de muniguate.com. Coordenadas aproximadas (pendiente confirmar con la página oficial).
  */
 return [
     'L1' => [
@@ -59,33 +59,35 @@ return [
             ['Jocotenango', '6a. avenida entre 3a. y 4a. calle, zona 2', 14.65220, -90.51330],
         ],
     ],
-    'L12' => [
-        'nombre' => 'Centra Sur – Plaza Barrios',
-        'color' => '#E9511D',
-        'circular' => false,
-        'tipo_servicio' => 'paradas_continuas',
-        'tarifa' => 1.00,
-        'horario' => ['lunes_viernes' => ['05:00', '20:00'], 'sabado' => ['05:00', '19:00'], 'domingo_feriado' => ['06:30', '19:00']],
-        'buses' => 18,
-        'capacidad' => 160,
-        'tramos' => [[8, [14.5669, -90.5508], [14.6180, -90.5292]], [6, [14.6210, -90.5270], [14.6380, -90.5141]]],
-        'estaciones' => array_map(fn ($n) => [$n, null, null, null], ['Centra Sur', 'Monte María', 'Javier', 'Las Charcas',
-            'El Carmen', 'Reformita', 'Mariscal', 'Trébol', 'Santa Cecilia', 'Bolívar', 'Don Bosco', 'Plaza Municipal',
-            'Plaza El Amate', 'Plaza Barrios']),
-    ],
-    'L13' => [
-        'nombre' => 'Tipografía – Hangares',
-        'color' => '#74BC1F',
+    'L6' => [
+        'nombre' => 'Proyectos – FEGUA',
+        'color' => '#FFE700',
+        // Recorrido en circuito: tronco común Proyectos – Proyectos 4-4 – Cipresales (doble abordaje),
+        // ida a FEGUA por la 15 avenida z6 y la 10a avenida z1, y regreso por la 11 avenida z1 y la 16 avenida z6.
+        // Cerro del Carmen sirve a los dos sentidos: se registra una sola vez (orden de la ida).
         'circular' => true,
         'tipo_servicio' => 'paradas_continuas',
         'tarifa' => 1.00,
-        'horario' => ['lunes_viernes' => ['05:00', '20:00'], 'sabado' => ['05:00', '19:00'], 'domingo_feriado' => ['06:30', '19:00']],
+        'horario' => ['lunes_viernes' => ['05:00', '21:00'], 'sabado' => ['05:00', '20:00'], 'domingo_feriado' => ['06:00', '20:00']],
         'buses' => 24,
         'capacidad' => 120,
-        'tramos' => [[11, [14.6268, -90.5178], [14.5885, -90.5318]], [11, [14.5895, -90.5262], [14.6262, -90.5148]]],
-        'estaciones' => array_map(fn ($n) => [$n, null, null, null], ['Tipografía', 'El Calvario', '4 Grados Sur', 'Exposición',
-            'Terminal', 'Industria', 'Tívoli', 'Montúfar', 'Acueducto', 'Fuerza Aérea', 'Hangares', 'Plaza Argentina',
-            'Juan Pablo II', 'Plaza Berlín', 'Los Arcos', 'Plaza España', 'IGSS Zona 9', 'Seis 26', 'Torre del Reformador',
-            'Plaza de la República', 'Cantón Exposición', 'Banco de Guatemala']),
+        'estaciones' => [
+            ['Proyectos', 'Avenida La Pedrera y 25 calle, zona 6', 14.66960, -90.49390],
+            ['Proyectos 4-4', 'Avenida La Pedrera y 20 calle, zona 6', 14.66535, -90.49615],
+            ['Cipresales', 'Avenida La Pedrera y 18 calle, zona 6', 14.66365, -90.49705],
+            ['Quintanal', '15 avenida y 13 calle, zona 6', 14.66000, -90.50050],
+            ['Corpus Christi', '15 avenida y 10a. calle, zona 6', 14.65745, -90.50185],
+            ['José Martí', '14 avenida y 7a. calle, zona 6', 14.65530, -90.50400],
+            ['Cerro del Carmen', '1a. calle y 13 avenida, entre zonas 1 y 2', 14.64780, -90.50750],
+            ['Santa Teresa', '10a. avenida y 4a. calle, zona 1', 14.64490, -90.51010],
+            ['Capuchinas', '10a. avenida y 10a. calle, zona 1', 14.63920, -90.51010],
+            ['Plaza Barrios/FEGUA', '18 calle entre 9a. y 10a. avenida, zona 1', 14.63160, -90.51050],
+            ['Francos y Monroy', '11 avenida y 15 calle, zona 1', 14.63450, -90.50920],
+            ['Colón', '11 avenida y 8a. calle, zona 1', 14.64110, -90.50920],
+            ['Parroquia', '15 avenida y 3a. calle, zona 6', 14.65150, -90.50500],
+            ['IGSS Zona 6', '16 avenida y 6a. calle, zona 6', 14.65365, -90.50285],
+            ['Centro Zona 6', '16 avenida y 10a. calle, zona 6', 14.65705, -90.50105],
+            ['Academia', '16 avenida y 15 calle, zona 6', 14.66130, -90.49880],
+        ],
     ],
 ];

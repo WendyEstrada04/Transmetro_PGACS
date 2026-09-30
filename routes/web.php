@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\LineaController;
 use App\Http\Controllers\Admin\MunicipioController;
 use App\Http\Controllers\Admin\PersonalController;
 use App\Http\Controllers\Admin\TarjetaController;
+use App\Http\Controllers\Admin\TrazoLineaController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\MapaController;
 use App\Http\Controllers\Operador\EstacionController;
@@ -48,6 +49,9 @@ Route::middleware('auth')->group(function () {
         Route::post('lineas/{linea}/estaciones', [LineaController::class, 'agregarEstacion'])->name('lineas.estaciones.store');
         Route::delete('lineas/{linea}/estaciones/{estacion}', [LineaController::class, 'quitarEstacion'])->name('lineas.estaciones.destroy');
         Route::put('lineas/{linea}/horarios', [LineaController::class, 'guardarHorarios'])->name('lineas.horarios');
+        Route::get('lineas/{linea}/trazo', [TrazoLineaController::class, 'edit'])->name('lineas.trazo.edit');
+        Route::put('lineas/{linea}/trazo', [TrazoLineaController::class, 'update'])->name('lineas.trazo.update');
+        Route::post('lineas/{linea}/trazo/kml', [TrazoLineaController::class, 'importar'])->name('lineas.trazo.importar');
 
         Route::resource('buses', BusController::class)->except('show')->parameters(['buses' => 'bus']);
         Route::put('buses/{bus}/parqueo', [BusController::class, 'cambiarParqueo'])->name('buses.parqueo');

@@ -33,8 +33,24 @@ class TransmetroDatos
         return require __DIR__.'/LineasTransmetro.php';
     }
 
-    public static function generar(callable $cifrar, callable $hash, ?int $semilla = 2026): array
+    /**
+     * Trazos dibujados en el mapa y estaciones movidas a su lugar (archivo trazos.json, lo crea la app
+     * al guardar un trazo o el comando "php artisan transmetro:guardar-trazos"). Vacío si no existe.
+     */
+    private static function trazos(): array
     {
+        $archivo = __DIR__.'/trazos.json';
+
+        return is_file($archivo) ? (json_decode((string) file_get_contents($archivo), true) ?: []) : [];
+    }
+
+    public static function generar(callable $cifrar, callable $hash, ?int $semilla = 2026, ?array $trazos = null): array
+    {
+        $trazos ??= self::trazos();
+        $ubicacionGuardada = [];
+        foreach ($trazos as $t) {
+            $ubicacionGuardada += $t['estaciones'] ?? [];
+        }
         mt_srand($semilla);
         $ahora = time();
         $fecha = fn (int $ts) => date('Y-m-d H:i:s', $ts);
@@ -59,7 +75,8 @@ class TransmetroDatos
             $lin[$codigo] = ['id' => $idLinea, 'paradas' => [], 'buses' => $def['buses'], 'capacidad' => $def['capacidad']];
             $lineas[] = ['id_linea' => $idLinea, 'id_municipio' => $mun['Guatemala'], 'codigo_linea' => $codigo,
                 'nombre' => $def['nombre'], 'tipo_servicio' => $def['tipo_servicio'], 'tarifa' => $def['tarifa'],
-                'color' => $def['color'], 'ruta_circular' => $def['circular'], 'distancia_total_km' => 0, 'estado' => 'activa'];
+                'color' => $def['color'], 'ruta_circular' => $def['circular'], 'distancia_total_km' => 0, 'estado' => 'activa',
+                'trazo' => empty($trazos[$codigo]['trazo']) ? null : json_encode($trazos[$codigo]['trazo'])];
             foreach ($def['horario'] as $tipoDia => [$inicio, $fin]) {
                 $horarios[] = ['id_horario' => $uuid(), 'id_linea' => $idLinea, 'tipo_dia' => $tipoDia,
                     'hora_inicio' => $inicio, 'hora_fin' => $fin];
@@ -76,11 +93,11 @@ class TransmetroDatos
 
             $puntos = [];
             foreach ($def['estaciones'] as $i => [$nombre, $direccion, $lat, $lon]) {
-                [$lat, $lon] = $lat === null ? $aprox[$i] : [$lat, $lon];
+                [$lat, $lon] = $ubicacionGuardada[$nombre] ?? ($lat === null ? $aprox[$i] : [$lat, $lon]);
                 $puntos[] = [$lat, $lon];
                 if (! isset($est[$nombre])) {
                     $est[$nombre] = $uuid();
-                    $aforo = in_array($nombre, ['Centra Sur', 'Plaza Barrios', 'Trébol', 'Tipografía', 'San Sebastián', 'Centro Cívico', 'Hipódromo del Norte'], true) ? 300 : mt_rand(12, 22) * 10;
+                    $aforo = in_array($nombre, ['San Sebastián', 'Centro Cívico', 'Hipódromo del Norte', 'Proyectos', 'Plaza Barrios/FEGUA'], true) ? 300 : mt_rand(12, 22) * 10;
                     $estaciones[] = ['id_estacion' => $est[$nombre], 'id_municipio' => $mun['Guatemala'], 'nombre' => $nombre,
                         'direccion' => $direccion, 'aforo_maximo' => $aforo, 'aforo_actual' => intdiv($aforo * mt_rand(15, 90), 100),
                         'latitud' => $lat, 'longitud' => $lon];
@@ -120,7 +137,7 @@ class TransmetroDatos
 
         // ---------------- PARQUEOS en las terminales — cada bus con un parqueo ----------------
         $parqueos = [];
-        foreach (['Centra Sur' => 24, 'San Sebastián' => 14, 'Hipódromo del Norte' => 10, 'Tipografía' => 12, 'Hangares' => 12] as $estacion => $cantidad) {
+        foreach (['San Sebastián' => 14, 'Centro Cívico' => 6, 'Hipódromo del Norte' => 10, 'Proyectos' => 20] as $estacion => $cantidad) {
             for ($i = 1; $i <= $cantidad; $i++) {
                 $parqueos[] = ['id_parqueo' => $uuid(), 'id_estacion' => $est[$estacion],
                     'codigo_bahia' => sprintf('B-%02d', $i), 'id_bus_asignado' => null];
@@ -135,7 +152,7 @@ class TransmetroDatos
         $e = 0;
         foreach ($est as $nombre => $idEstacion) {
             $e++;
-            $ubicaciones = in_array($nombre, ['Centra Sur', 'Plaza Barrios', 'Trébol', 'Tipografía'], true) ? ['Norte', 'Sur', 'Oriente'] : ['Norte', 'Sur'];
+            $ubicaciones = in_array($nombre, ['San Sebastián', 'Centro Cívico', 'Hipódromo del Norte', 'Proyectos', 'Plaza Barrios/FEGUA'], true) ? ['Norte', 'Sur', 'Oriente'] : ['Norte', 'Sur'];
             foreach ($ubicaciones as $k => $ubicacion) {
                 $idAcceso = $uuid();
                 $accesos[] = ['id_acceso' => $idAcceso, 'id_estacion' => $idEstacion, 'ubicacion_fisica' => "Acceso $ubicacion"];
@@ -183,13 +200,13 @@ class TransmetroDatos
                 'constancia_antecedentes_penales' => 'Vigente '.date('Y'), 'numero_placa_asignada' => sprintf('SEG-%03d', $i + 1),
                 'id_acceso_asignado' => $acceso['id_acceso']];
         }
-        $operadorPlazaBarrios = null;
+        $operadorSanSebastian = null;
         foreach ($est as $nombre => $idEstacion) {
             $id = $nuevoEmpleado('operador');
             $operadores[] = ['id_empleado' => $id, 'nivel_estudios' => $azar(self::NIVELES),
                 'anios_experiencia_monitoreo' => mt_rand(1, 10), 'id_estacion_asignada' => $idEstacion];
-            if ($nombre === 'Plaza Barrios') {
-                $operadorPlazaBarrios = $id;
+            if ($nombre === 'San Sebastián') {
+                $operadorSanSebastian = $id;
             }
         }
 
@@ -198,8 +215,8 @@ class TransmetroDatos
         $users = [
             ['name' => 'Administrador Municipal', 'email' => 'admin@transmetro.test', 'email_verified_at' => $fecha($ahora),
                 'password' => $clave, 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'administrador', 'id_empleado' => null],
-            ['name' => 'Operador Plaza Barrios', 'email' => 'operador@transmetro.test', 'email_verified_at' => $fecha($ahora),
-                'password' => $clave, 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'operador', 'id_empleado' => $operadorPlazaBarrios],
+            ['name' => 'Operador San Sebastián', 'email' => 'operador@transmetro.test', 'email_verified_at' => $fecha($ahora),
+                'password' => $clave, 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'operador', 'id_empleado' => $operadorSanSebastian],
         ];
 
         // ---------------- TARJETA CIUDADANA: tarjetas y recargas ----------------
@@ -278,7 +295,7 @@ class TransmetroDatos
 
         // ---------------- ALERTA HISTÓRICA (cerrada) Y BITÁCORA ----------------
         $alertas = [[
-            'id_alerta' => $uuid(), 'id_estacion' => $est['Centra Sur'], 'tipo_alerta' => 'refuerzo_bus',
+            'id_alerta' => $uuid(), 'id_estacion' => $est['Centro Cívico'], 'tipo_alerta' => 'refuerzo_bus',
             'descripcion' => 'La estacion supero el 150% de su aforo maximo (455/300). Se requiere unidad de refuerzo.',
             'estado' => 'cerrada', 'fecha_creacion' => $fecha($ahora - 2 * 86400), 'fecha_cierre' => $fecha($ahora - 2 * 86400 + 900),
         ]];
@@ -314,8 +331,8 @@ class TransmetroDatos
                 'alertas_sistema' => $alertas,
                 'bitacora_auditoria' => $bitacora,
             ],
-            // Punto 14: Plaza Barrios queda saturada (160 %); el trigger crea la alerta abierta.
-            'aforos' => [$est['Plaza Barrios'] => 480],
+            // Punto 14: San Sebastián queda saturada (160 %); el trigger crea la alerta abierta.
+            'aforos' => [$est['San Sebastián'] => 480],
         ];
     }
 

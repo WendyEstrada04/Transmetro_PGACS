@@ -27,14 +27,16 @@ class MapaController extends Controller
         ]);
     }
 
-    /** Datos que usa el mapa (Leaflet): líneas, color, si es circular y estaciones en orden. */
+    /** Datos que usa el mapa (Leaflet): líneas, color, si es circular, trazo por las calles y estaciones en orden. */
     public static function datos(Collection $lineas): array
     {
         return $lineas->map(fn (Linea $linea) => [
             'codigo' => $linea->codigo_linea,
             'nombre' => $linea->nombre,
             'color' => $linea->color,
+            'texto' => $linea->colorTexto(),
             'circular' => (bool) $linea->ruta_circular,
+            'trazo' => $linea->tieneTrazo() ? $linea->trazo : [],
             'estaciones' => $linea->estaciones->map(fn ($e) => [
                 'id' => $e->id_estacion,
                 'nombre' => $e->nombre,

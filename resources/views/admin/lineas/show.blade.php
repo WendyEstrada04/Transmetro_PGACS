@@ -29,7 +29,17 @@
 
     {{-- Mapa de la ruta --}}
     <section class="mb-6">
-        <h2 class="mb-3 text-lg font-semibold text-tm-900">Ruta en el mapa</h2>
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+            <h2 class="text-lg font-semibold text-tm-900">Ruta en el mapa</h2>
+            @if ($linea->tieneTrazo())
+                <span class="etiqueta bg-tm-100 text-tm-700">Trazada por las calles</span>
+            @else
+                <span class="etiqueta bg-amber-100 text-amber-800">Sin trazar (se ve punteada)</span>
+            @endif
+            <a href="{{ route('admin.lineas.trazo.edit', $linea) }}" class="btn btn-primario btn-chico ml-auto">
+                {{ $linea->tieneTrazo() ? 'Editar trazo de la ruta' : 'Trazar ruta por las calles' }}
+            </a>
+        </div>
         @include('partials.mapa', ['lineasMapa' => \App\Http\Controllers\MapaController::datos(collect([$linea])), 'idMapa' => 'mapa-linea', 'alto' => 'h-96'])
     </section>
 
@@ -78,7 +88,7 @@
             <div class="caja">
                 @forelse ($linea->estaciones as $estacion)
                     <div class="flex items-center gap-3 border-b border-slate-100 py-2 last:border-0">
-                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white" style="background: {{ $linea->color }}">{{ $estacion->pivot->orden_parada }}</span>
+                        <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold" style="background: {{ $linea->color }}; color: {{ $linea->colorTexto() }}">{{ $estacion->pivot->orden_parada }}</span>
                         <div class="flex-1 text-sm">
                             <a href="{{ route('admin.estaciones.show', $estacion) }}" class="enlace">{{ $estacion->nombre }}</a>
                             <span class="text-slate-400">· {{ $estacion->municipio->nombre }}</span>

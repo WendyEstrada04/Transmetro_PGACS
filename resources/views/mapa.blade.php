@@ -11,7 +11,7 @@
         @foreach ($lineas as $linea)
             <div class="caja">
                 <div class="mb-2 flex items-center gap-2">
-                    <span class="flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold text-white" style="background: {{ $linea->color }}">{{ $linea->codigo_linea }}</span>
+                    <span class="flex h-9 w-9 items-center justify-center rounded-md text-sm font-bold" style="background: {{ $linea->color }}; color: {{ $linea->colorTexto() }}">{{ $linea->codigo_linea }}</span>
                     <div>
                         <p class="font-semibold leading-tight text-tm-900">{{ $linea->nombre }}</p>
                         <p class="text-xs text-slate-500">
@@ -41,5 +41,5 @@
             </div>
         @endforeach
     </div>
-    <p class="mt-3 text-xs text-slate-500">Mapas: © colaboradores de OpenStreetMap, © Esri (calles y satélite). Usa el botón de capas (arriba a la derecha del mapa) para cambiar a vista satélite. Las estaciones sin dirección registrada tienen ubicación aproximada.</p>
+    <p class="mt-3 text-xs text-slate-500">Mapa: © colaboradores de OpenStreetMap. Las rutas punteadas todavía no tienen su trazo por las calles (el administrador lo dibuja en el detalle de la línea).</p>
 @endsection

@@ -11,7 +11,7 @@
         @csrf
         @if ($linea->exists) @method('PUT') @endif
 
-        <x-campo name="codigo_linea" label="Código de la línea" :value="$linea->codigo_linea" required maxlength="20" ayuda="Ejemplo: L1, L12" />
+        <x-campo name="codigo_linea" label="Código de la línea" :value="$linea->codigo_linea" required maxlength="20" ayuda="Ejemplo: L1, L2" />
         <x-campo name="nombre" label="Nombre de la línea" :value="$linea->nombre" maxlength="100" ayuda="Ejemplo: Eje Sur, Corredor Central" />
         <x-seleccion name="id_municipio" label="Municipio" :opciones="$municipios" :value="$linea->id_municipio" required vacio="Selecciona…" />
         <div class="grid gap-4 md:grid-cols-2">

@@ -31,11 +31,11 @@ test('las pantallas del administrador cargan', function (string $ruta) {
 test('las pantallas de detalle del administrador cargan', function () {
     $admin = $this->administrador();
     $linea = Linea::where('codigo_linea', 'L1')->firstOrFail();
-    $estacion = Estacion::where('nombre', 'Plaza Barrios')->firstOrFail();
+    $estacion = Estacion::where('nombre', 'San Sebastián')->firstOrFail();
 
     $this->actingAs($admin)->get(route('admin.lineas.show', $linea))->assertOk()->assertSee('L1');
     $this->actingAs($admin)->get(route('admin.lineas.edit', $linea))->assertOk();
-    $this->actingAs($admin)->get(route('admin.estaciones.show', $estacion))->assertOk()->assertSee('Plaza Barrios');
+    $this->actingAs($admin)->get(route('admin.estaciones.show', $estacion))->assertOk()->assertSee('San Sebastián');
     $this->actingAs($admin)->get(route('admin.estaciones.edit', $estacion))->assertOk();
     $this->actingAs($admin)->get(route('admin.buses.edit', Bus::firstOrFail()))->assertOk();
     $this->actingAs($admin)->get(route('admin.tarjetas.show', Tarjeta::firstOrFail()))->assertOk();
@@ -44,7 +44,7 @@ test('las pantallas de detalle del administrador cargan', function () {
 test('el panel del operador muestra su estación', function () {
     $this->actingAs($this->operador())->get('/operador')
         ->assertOk()
-        ->assertSee('Plaza Barrios');
+        ->assertSee('San Sebastián');
 });
 
 test('el mapa del operador carga', function () {

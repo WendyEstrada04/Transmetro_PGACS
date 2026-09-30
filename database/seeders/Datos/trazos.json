@@ -1,0 +1,48 @@
+{
+    "L1": {
+        "trazo": [],
+        "estaciones": {
+            "San Sebastián": [14.6458, -90.5135],
+            "Mercado Central": [14.643, -90.5118],
+            "Correos": [14.6373, -90.5118],
+            "Beatas de Belén": [14.6345, -90.5118],
+            "Paseo de las Letras": [14.6307, -90.5118],
+            "Centro Cívico": [14.6288, -90.5131],
+            "Sur 2": [14.6316, -90.5144],
+            "Gómez Carrillo": [14.6354, -90.5144],
+            "San Agustín": [14.6382, -90.5144],
+            "Parque Centenario": [14.6411, -90.5144]
+        }
+    },
+    "L2": {
+        "trazo": [],
+        "estaciones": {
+            "San Sebastián": [14.6458, -90.5135],
+            "Simeón Cañas": [14.6568, -90.5116],
+            "Hipódromo del Norte": [14.6627, -90.5093],
+            "San José de la Montaña": [14.6561, -90.512],
+            "Jocotenango": [14.6522, -90.5133]
+        }
+    },
+    "L6": {
+        "trazo": [],
+        "estaciones": {
+            "Proyectos": [14.673329, -90.487462],
+            "Proyectos 4-4": [14.667559, -90.491939],
+            "Cipresales": [14.66532, -90.493794],
+            "Quintanal": [14.658546, -90.495992],
+            "Corpus Christi": [14.656832, -90.496848],
+            "José Martí": [14.652949, -90.499984],
+            "Cerro del Carmen": [14.648125, -90.504911],
+            "Santa Teresa": [14.644051, -90.509165],
+            "Capuchinas": [14.638554, -90.509892],
+            "Plaza Barrios/FEGUA": [14.630528, -90.511633],
+            "Francos y Monroy": [14.632644, -90.50937],
+            "Colón": [14.639986, -90.508372],
+            "Parroquia": [14.649987, -90.499793],
+            "IGSS Zona 6": [14.651569, -90.497468],
+            "Centro Zona 6": [14.654944, -90.496075],
+            "Academia": [14.659034, -90.494055]
+        }
+    }
+}

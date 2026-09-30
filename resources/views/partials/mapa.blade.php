@@ -1,5 +1,5 @@
 {{--
-    Mapa de rutas (Leaflet + OpenStreetMap).
+    Mapa de rutas (Leaflet + OpenStreetMap). Las rutas sin trazo se ven punteadas.
     Variables: $lineasMapa (MapaController::datos), $idMapa, $alto (clase de altura), $resaltar (id de estación, opcional).
 --}}
 @once
@@ -32,34 +32,27 @@
             const resaltar = @json($resaltar ?? null);
             const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
-            // Fondos de mapa gratuitos (sin llave): calles (Esri), satélite con nombres (Esri) y OpenStreetMap.
-            const osm = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
-            const fondos = {
-                'Calles': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                    maxZoom: 19, attribution: 'Mapa &copy; Esri, HERE, Garmin, &copy; OpenStreetMap',
-                }),
-                'Satélite': L.layerGroup([
-                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                        maxZoom: 19, attribution: 'Imágenes &copy; Esri, Maxar, Earthstar Geographics',
-                    }),
-                    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                        maxZoom: 19,
-                    }),
-                ]),
-                'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: osm}),
-            };
-            const mapa = L.map(@json($idMapa), {layers: [fondos['Calles']]});
-            L.control.layers(fondos, null, {position: 'topright'}).addTo(mapa);
+            // Fondo de mapa: OpenStreetMap (gratis, sin llave).
+            const mapa = L.map(@json($idMapa));
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+            }).addTo(mapa);
             L.control.scale({imperial: false}).addTo(mapa);
 
-            // Rutas: una línea de color por cada línea del Transmetro, uniendo sus estaciones en orden.
+            // Rutas: una línea de color por cada línea del Transmetro.
+            // Si la línea tiene su trazo por las calles se dibuja ese; si no, se unen las estaciones en línea recta.
             const rutas = {};
             const limites = [];
             lineas.forEach((l) => {
-                const puntos = l.estaciones.map((e) => [e.lat, e.lon]);
-                if (l.circular && puntos.length > 2) puntos.push(puntos[0]);
-                rutas[l.codigo] = L.polyline(puntos, {color: l.color, weight: 6, opacity: 0.85})
-                    .bindTooltip(`${esc(l.codigo)} · ${esc(l.nombre)}`, {sticky: true})
+                let puntos = l.trazo;
+                const porCalles = puntos.length >= 2;
+                if (!porCalles) {
+                    puntos = l.estaciones.map((e) => [e.lat, e.lon]);
+                    if (l.circular && puntos.length > 2) puntos.push(puntos[0]);
+                }
+                rutas[l.codigo] = L.polyline(puntos, {color: l.color, weight: 6, opacity: 0.85, dashArray: porCalles ? null : '8 8'})
+                    .bindTooltip(`${esc(l.codigo)} · ${esc(l.nombre)}` + (porCalles ? '' : ' (ruta aproximada, sin trazar)'), {sticky: true})
                     .addTo(mapa);
                 limites.push(...puntos);
             });
@@ -68,7 +61,7 @@
             const estaciones = {};
             lineas.forEach((l) => l.estaciones.forEach((e) => {
                 estaciones[e.id] ??= {...e, lineas: []};
-                estaciones[e.id].lineas.push({codigo: l.codigo, color: l.color, orden: e.orden});
+                estaciones[e.id].lineas.push({codigo: l.codigo, color: l.color, texto: l.texto, orden: e.orden});
             }));
 
             const marcas = Object.values(estaciones).map((e) => {
@@ -84,7 +77,7 @@
                     `<b>${esc(e.nombre)}</b>` +
                     (e.direccion ? `<br>${esc(e.direccion)}` : '<br><small>Ubicación aproximada</small>') +
                     '<br>' + e.lineas.map((l) =>
-                        `<span style="background:${esc(l.color)};color:#fff;border-radius:4px;padding:1px 6px;margin:4px 4px 0 0;display:inline-block;font-size:11px">${esc(l.codigo)} · parada ${l.orden}</span>`
+                        `<span style="background:${esc(l.color)};color:${esc(l.texto)};border-radius:4px;padding:1px 6px;margin:4px 4px 0 0;display:inline-block;font-size:11px">${esc(l.codigo)} · parada ${l.orden}</span>`
                     ).join('') +
                     (transbordo ? '<br><i>Estación de transbordo</i>' : '') +
                     (propia ? '<br><b>Tu estación</b>' : '')

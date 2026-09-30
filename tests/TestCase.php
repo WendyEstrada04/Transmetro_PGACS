@@ -54,7 +54,7 @@ abstract class TestCase extends BaseTestCase
         return User::where('email', 'admin@transmetro.test')->firstOrFail();
     }
 
-    /** Operador asignado a la estación Plaza Barrios (según los datos de prueba). */
+    /** Operador asignado a la estación San Sebastián (según los datos de prueba). */
     protected function operador(): User
     {
         return User::where('email', 'operador@transmetro.test')->firstOrFail();
