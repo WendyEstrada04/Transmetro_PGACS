@@ -15,3 +15,43 @@
     --color-tm-700: #155240;
     --color-tm-900: #0f3b2e;
 }
+
+/* Componentes reutilizables del sistema */
+@layer components {
+    .btn {
+        @apply inline-flex items-center justify-center gap-1 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap;
+    }
+    .btn-primario {
+        @apply bg-tm-700 text-white hover:bg-tm-900;
+    }
+    .btn-secundario {
+        @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+    }
+    .btn-peligro {
+        @apply bg-red-600 text-white hover:bg-red-700;
+    }
+    .btn-chico {
+        @apply px-2.5 py-1 text-xs;
+    }
+    .caja {
+        @apply rounded-lg bg-white p-5 shadow-sm;
+    }
+    .tabla {
+        @apply w-full text-left text-sm;
+    }
+    .tabla thead {
+        @apply bg-tm-900 text-white;
+    }
+    .tabla th {
+        @apply px-4 py-2 font-medium;
+    }
+    .tabla td {
+        @apply border-t border-slate-100 px-4 py-2 align-top;
+    }
+    .enlace {
+        @apply font-medium text-tm-700 underline-offset-2 hover:underline;
+    }
+    .etiqueta {
+        @apply inline-block rounded-full px-2 py-0.5 text-xs;
+    }
+}

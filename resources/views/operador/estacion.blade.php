@@ -68,6 +68,70 @@
         </div>
     </div>
 
+    <div class="mb-8 grid gap-4 lg:grid-cols-3">
+        {{-- Registrar pase en molinete (punto 18) --}}
+        <form method="POST" action="{{ route('operador.pases') }}" class="caja space-y-3 lg:col-span-2">
+            @csrf
+            <h2 class="font-semibold text-tm-900">Registrar pase en molinete</h2>
+            <p class="text-xs text-slate-500">Pago solo con Tarjeta Ciudadana o tarjeta bancaria sin contacto. Una tarjeta nueva usa primero sus viajes gratis.</p>
+            <div class="grid gap-3 md:grid-cols-2">
+                <x-seleccion name="id_acceso" label="Acceso / molinete" required
+                             :opciones="$estacion->accesos->filter(fn ($a) => $a->molinete)->mapWithKeys(fn ($a) => [$a->id_acceso => $a->ubicacion_fisica.' · '.$a->molinete->estado_operativo])->all()" />
+                <x-seleccion name="id_linea" label="Línea" required
+                             :opciones="$estacion->lineas->mapWithKeys(fn ($l) => [$l->id_linea => $l->codigo_linea.' — Q'.number_format($l->tarifa, 2)])->all()" />
+                <x-seleccion name="metodo_pago" label="Forma de pago" :opciones="$metodosPago" required />
+                <x-campo name="numero_tarjeta" label="Número de Tarjeta Ciudadana" maxlength="20" placeholder="TC4000007919" />
+            </div>
+            @error('pase')<p class="text-sm text-red-600">{{ $message }}</p>@enderror
+            <button class="btn btn-primario">Registrar pase</button>
+        </form>
+
+        {{-- Horario de servicio --}}
+        <div class="caja">
+            <h2 class="mb-3 font-semibold text-tm-900">Horario de servicio</h2>
+            @foreach ($estacion->lineas as $linea)
+                <div class="mb-3 border-b border-slate-100 pb-3 text-sm last:mb-0 last:border-0 last:pb-0">
+                    <p class="flex items-center justify-between font-medium">
+                        {{ $linea->codigo_linea }} {{ $linea->nombre }}
+                        <span class="etiqueta {{ $linea->enServicio() ? 'bg-tm-100 text-tm-700' : 'bg-slate-100 text-slate-600' }}">
+                            {{ $linea->enServicio() ? 'En servicio' : 'Fuera de horario' }}
+                        </span>
+                    </p>
+                    @foreach (\App\Models\HorarioLinea::TIPOS_DIA as $tipo => $etiquetaDia)
+                        @php $horario = $linea->horarios->firstWhere('tipo_dia', $tipo); @endphp
+                        <p class="flex justify-between text-slate-600">
+                            <span>{{ $etiquetaDia }}</span>
+                            <span>{{ $horario ? $horario->inicio().' – '.$horario->fin() : '—' }}</span>
+                        </p>
+                    @endforeach
+                </div>
+            @endforeach
+        </div>
+    </div>
+
+    {{-- Últimos pases --}}
+    <section class="mb-8">
+        <h2 class="mb-3 text-lg font-semibold text-tm-900">Últimos pases en esta estación</h2>
+        <div class="overflow-x-auto rounded-lg bg-white shadow-sm">
+            <table class="tabla">
+                <thead><tr><th>Hora</th><th>Acceso</th><th>Línea</th><th>Forma de pago</th><th class="text-right">Cobro</th></tr></thead>
+                <tbody>
+                    @forelse ($pases as $pase)
+                        <tr>
+                            <td>{{ $pase->fecha_hora?->format('d/m H:i') }}</td>
+                            <td>{{ $pase->molinete->acceso->ubicacion_fisica }}</td>
+                            <td>{{ $pase->linea?->codigo_linea ?? '—' }}</td>
+                            <td>{{ $metodosPago[$pase->metodo_pago] ?? $pase->metodo_pago }}{{ $pase->tarjeta ? ' · '.$pase->tarjeta->numero_tarjeta : '' }}</td>
+                            <td class="text-right">{{ $pase->viaje_gratis ? 'Gratis' : 'Q'.number_format($pase->monto, 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="text-center text-slate-400">Sin pases registrados.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </section>
+
     {{-- Buses de las líneas de la estación --}}
     <section class="mb-8">
         <h2 class="mb-3 text-lg font-semibold text-tm-900">Buses de las líneas que pasan por la estación</h2>

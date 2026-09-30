@@ -25,6 +25,13 @@ class TransaccionPago extends Model
         'monto',
         'metodo_pago',
         'fecha_hora',
+        'id_linea',
+        'viaje_gratis',
+    ];
+
+    public const METODOS = [
+        'tarjeta_ciudadana' => 'Tarjeta Ciudadana',
+        'tarjeta_bancaria' => 'Tarjeta bancaria sin contacto',
     ];
 
     protected function casts(): array
@@ -32,6 +39,7 @@ class TransaccionPago extends Model
         return [
             'monto' => 'decimal:2',
             'fecha_hora' => 'datetime',
+            'viaje_gratis' => 'boolean',
         ];
     }
 
@@ -43,5 +51,10 @@ class TransaccionPago extends Model
     public function tarjeta(): BelongsTo
     {
         return $this->belongsTo(Tarjeta::class, 'id_tarjeta', 'id_tarjeta');
+    }
+
+    public function linea(): BelongsTo
+    {
+        return $this->belongsTo(Linea::class, 'id_linea', 'id_linea');
     }
 }

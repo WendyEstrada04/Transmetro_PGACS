@@ -1,0 +1,60 @@
+# Corre las pruebas automáticas (Pest) cada vez que se sube código a GitHub.
+# Usa un PostgreSQL temporal de GitHub: nunca toca la base de datos de Supabase.
+name: Pruebas
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: transmetro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: transmetro
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo_pgsql, pgsql, mbstring, intl
+          coverage: none
+
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Preparar la aplicación
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Revisar el estilo del código (Pint)
+        run: vendor/bin/pint --test
+
+      - name: Correr las pruebas
+        run: php artisan test

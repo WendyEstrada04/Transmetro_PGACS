@@ -24,6 +24,7 @@ class Estacion extends Model
     protected $fillable = [
         'id_municipio',
         'nombre',
+        'direccion',
         'aforo_maximo',
         'aforo_actual',
         'latitud',

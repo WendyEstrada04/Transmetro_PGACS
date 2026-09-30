@@ -3,7 +3,7 @@
 -- Script de creacion de estructuras de base de datos (DDL)
 -- Motor: PostgreSQL 15+ (Supabase)
 -- Autor: Wendy Celeste Estrada
--- Fecha: 2026-09-28
+-- Fecha: 2026-09-29
 -- Equivale a las migraciones de Laravel en database/migrations.
 -- Requiere la tabla users de Laravel (se crea con php artisan migrate).
 -- =====================================================================
@@ -23,7 +23,7 @@ CREATE TABLE municipios (
 
 -- ---------------------------------------------------------------------
 -- 2. LINEAS
---    Puntos 11 y 13. distancia_total_km se recalcula con trg_linea_estacion_distancia.
+--    Puntos 11 y 13. distancia_total_km se recalcula con trg_linea_estacion_distancia. Tarifa: Q1.00 paradas continuas, Q2.00 directo. Color y ruta circular para el mapa.
 -- ---------------------------------------------------------------------
 CREATE TABLE lineas (
     id_linea            UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -31,16 +31,24 @@ CREATE TABLE lineas (
     codigo_linea        VARCHAR(20) NOT NULL,
     distancia_total_km  DECIMAL(6,2) NOT NULL DEFAULT 0,
     estado              VARCHAR(255) NOT NULL DEFAULT 'activa',
+    nombre              VARCHAR(100),
+    tipo_servicio       VARCHAR(20) NOT NULL DEFAULT 'paradas_continuas',
+    tarifa              DECIMAL(5,2) NOT NULL DEFAULT 1.00,
+    color               VARCHAR(7) NOT NULL DEFAULT '#155240',
+    ruta_circular       BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT lineas_pkey PRIMARY KEY (id_linea),
     CONSTRAINT uq_lineas_codigo UNIQUE (codigo_linea),
     CONSTRAINT fk_lineas_municipio FOREIGN KEY (id_municipio) REFERENCES municipios(id_municipio) ON UPDATE CASCADE ON DELETE RESTRICT,
+    CONSTRAINT chk_lineas_color CHECK (color ~ '^#[0-9A-Fa-f]{6}$'),
     CONSTRAINT chk_lineas_distancia CHECK (distancia_total_km >= 0),
+    CONSTRAINT chk_lineas_tarifa CHECK (tarifa >= 0),
+    CONSTRAINT chk_lineas_tipo_servicio CHECK (tipo_servicio IN ('paradas_continuas', 'directo')),
     CONSTRAINT lineas_estado_check CHECK (estado IN ('activa', 'inactiva', 'mantenimiento'))
 );
 
 -- ---------------------------------------------------------------------
 -- 3. ESTACIONES
---    Punto 11. Coordenadas como latitud/longitud (antes POINT en MySQL).
+--    Punto 11. Direccion y coordenadas latitud/longitud (antes POINT en MySQL) para el mapa.
 -- ---------------------------------------------------------------------
 CREATE TABLE estaciones (
     id_estacion   UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -50,6 +58,7 @@ CREATE TABLE estaciones (
     aforo_actual  INTEGER NOT NULL DEFAULT 0,
     latitud       DECIMAL(9,6) NOT NULL,
     longitud      DECIMAL(9,6) NOT NULL,
+    direccion     VARCHAR(200),
     CONSTRAINT estaciones_pkey PRIMARY KEY (id_estacion),
     CONSTRAINT fk_estaciones_municipio FOREIGN KEY (id_municipio) REFERENCES municipios(id_municipio) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT chk_estaciones_aforo CHECK (aforo_maximo > 0 AND aforo_actual >= 0),
@@ -75,7 +84,24 @@ CREATE TABLE linea_estacion (
 CREATE INDEX idx_linea_estacion_estacion ON linea_estacion (id_estacion);
 
 -- ---------------------------------------------------------------------
--- 5. BUSES
+-- 5. HORARIOS_LINEA
+--    Horario de servicio por linea (lunes a viernes, sabado, domingo y feriados).
+-- ---------------------------------------------------------------------
+CREATE TABLE horarios_linea (
+    id_horario   UUID NOT NULL DEFAULT gen_random_uuid(),
+    id_linea     UUID NOT NULL,
+    tipo_dia     VARCHAR(20) NOT NULL,
+    hora_inicio  TIME WITHOUT TIME ZONE NOT NULL,
+    hora_fin     TIME WITHOUT TIME ZONE NOT NULL,
+    CONSTRAINT horarios_linea_pkey PRIMARY KEY (id_horario),
+    CONSTRAINT uq_horarios_linea_dia UNIQUE (id_linea, tipo_dia),
+    CONSTRAINT fk_horarios_linea FOREIGN KEY (id_linea) REFERENCES lineas(id_linea) ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT chk_horarios_rango CHECK (hora_fin > hora_inicio),
+    CONSTRAINT chk_horarios_tipo_dia CHECK (tipo_dia IN ('lunes_viernes', 'sabado', 'domingo_feriado'))
+);
+
+-- ---------------------------------------------------------------------
+-- 6. BUSES
 --    Puntos 4, 14 y 15: bus en una sola linea o ninguna, capacidad y ocupacion.
 -- ---------------------------------------------------------------------
 CREATE TABLE buses (
@@ -95,7 +121,7 @@ CREATE TABLE buses (
 CREATE INDEX idx_buses_linea ON buses (id_linea_asignada);
 
 -- ---------------------------------------------------------------------
--- 6. ACCESOS
+-- 7. ACCESOS
 --    Punto 3: varios accesos por estacion, un acceso pertenece a una sola estacion.
 -- ---------------------------------------------------------------------
 CREATE TABLE accesos (
@@ -108,7 +134,7 @@ CREATE TABLE accesos (
 CREATE INDEX idx_accesos_estacion ON accesos (id_estacion);
 
 -- ---------------------------------------------------------------------
--- 7. MOLINETES
+-- 8. MOLINETES
 --    Un molinete propio por acceso (1:1).
 -- ---------------------------------------------------------------------
 CREATE TABLE molinetes (
@@ -123,7 +149,7 @@ CREATE TABLE molinetes (
 );
 
 -- ---------------------------------------------------------------------
--- 8. PARQUEOS
+-- 9. PARQUEOS
 --    Puntos 6 y 7: un bus nunca ocupa dos parqueos (UNIQUE) y cambia con sp_cambiar_parqueo_bus.
 -- ---------------------------------------------------------------------
 CREATE TABLE parqueos (
@@ -139,7 +165,7 @@ CREATE TABLE parqueos (
 );
 
 -- ---------------------------------------------------------------------
--- 9. EMPLEADOS
+-- 10. EMPLEADOS
 --    Datos generales del personal (contacto y direccion cifrados por Laravel).
 -- ---------------------------------------------------------------------
 CREATE TABLE empleados (
@@ -157,7 +183,7 @@ CREATE TABLE empleados (
 );
 
 -- ---------------------------------------------------------------------
--- 10. PILOTOS
+-- 11. PILOTOS
 --    Punto 9: historial educativo, residencia y comunicacion del piloto.
 -- ---------------------------------------------------------------------
 CREATE TABLE pilotos (
@@ -177,7 +203,7 @@ CREATE TABLE pilotos (
 );
 
 -- ---------------------------------------------------------------------
--- 11. SEGURIDAD
+-- 12. SEGURIDAD
 --    Punto 10: al menos un guardia por acceso (trg_seguridad_min_uno).
 -- ---------------------------------------------------------------------
 CREATE TABLE seguridad (
@@ -193,7 +219,7 @@ CREATE TABLE seguridad (
 CREATE INDEX idx_seguridad_acceso ON seguridad (id_acceso_asignado);
 
 -- ---------------------------------------------------------------------
--- 12. OPERADORES
+-- 13. OPERADORES
 --    Punto 16: operador asignado a la PC de trabajo de cada estacion.
 -- ---------------------------------------------------------------------
 CREATE TABLE operadores (
@@ -209,24 +235,33 @@ CREATE TABLE operadores (
 CREATE INDEX idx_operadores_estacion ON operadores (id_estacion_asignada);
 
 -- ---------------------------------------------------------------------
--- 13. TARJETAS
---    NUEVO - Punto 18: tarjeta de acceso Transmetro con saldo.
+-- 14. TARJETAS
+--    Punto 18: Tarjeta Ciudadana (ciudadana, adulto mayor, discapacidad), costo Q20 con 5 viajes gratis.
 -- ---------------------------------------------------------------------
 CREATE TABLE tarjetas (
-    id_tarjeta      UUID NOT NULL DEFAULT gen_random_uuid(),
-    numero_tarjeta  VARCHAR(20) NOT NULL,
-    saldo           DECIMAL(8,2) NOT NULL DEFAULT 0,
-    estado          VARCHAR(255) NOT NULL DEFAULT 'activa',
-    fecha_emision   TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_tarjeta               UUID NOT NULL DEFAULT gen_random_uuid(),
+    numero_tarjeta           VARCHAR(20) NOT NULL,
+    saldo                    DECIMAL(8,2) NOT NULL DEFAULT 0,
+    estado                   VARCHAR(255) NOT NULL DEFAULT 'activa',
+    fecha_emision            TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    tipo_tarjeta             VARCHAR(20) NOT NULL DEFAULT 'ciudadana',
+    nombre_titular           VARCHAR(200),
+    dpi_titular              VARCHAR(13),
+    costo_emision            DECIMAL(6,2) NOT NULL DEFAULT 20.00,
+    viajes_gratis_restantes  INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT tarjetas_pkey PRIMARY KEY (id_tarjeta),
     CONSTRAINT uq_tarjetas_numero UNIQUE (numero_tarjeta),
+    CONSTRAINT chk_tarjetas_costo CHECK (costo_emision >= 0),
     CONSTRAINT chk_tarjetas_saldo CHECK (saldo >= 0),
+    CONSTRAINT chk_tarjetas_tipo CHECK (tipo_tarjeta IN ('ciudadana', 'adulto_mayor', 'discapacidad')),
+    CONSTRAINT chk_tarjetas_titular CHECK (tipo_tarjeta = 'ciudadana' OR (nombre_titular IS NOT NULL AND dpi_titular IS NOT NULL)),
+    CONSTRAINT chk_tarjetas_viajes_gratis CHECK (viajes_gratis_restantes >= 0),
     CONSTRAINT tarjetas_estado_check CHECK (estado IN ('activa', 'bloqueada', 'vencida'))
 );
 
 -- ---------------------------------------------------------------------
--- 14. RECARGAS
---    NUEVO - Punto 18: recargas de saldo a las tarjetas.
+-- 15. RECARGAS
+--    Punto 18: recargas de Q5 a Q200 (efectivo, debito, credito o en linea).
 -- ---------------------------------------------------------------------
 CREATE TABLE recargas (
     id_recarga   UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -236,13 +271,13 @@ CREATE TABLE recargas (
     fecha_hora   TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT recargas_pkey PRIMARY KEY (id_recarga),
     CONSTRAINT fk_recargas_tarjeta FOREIGN KEY (id_tarjeta) REFERENCES tarjetas(id_tarjeta) ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT chk_recargas_monto CHECK (monto > 0),
-    CONSTRAINT recargas_metodo_pago_check CHECK (metodo_pago IN ('efectivo', 'credito', 'debito'))
+    CONSTRAINT chk_recargas_monto CHECK (monto BETWEEN 5 AND 200),
+    CONSTRAINT recargas_metodo_pago_check CHECK (metodo_pago IN ('efectivo', 'debito', 'credito', 'en_linea'))
 );
 CREATE INDEX idx_recargas_tarjeta ON recargas (id_tarjeta);
 
 -- ---------------------------------------------------------------------
--- 15. ALERTAS_SISTEMA
+-- 16. ALERTAS_SISTEMA
 --    Punto 14: alertas de refuerzo de bus (trg_estaciones_alerta_aforo).
 -- ---------------------------------------------------------------------
 CREATE TABLE alertas_sistema (
@@ -261,8 +296,8 @@ CREATE TABLE alertas_sistema (
 CREATE INDEX idx_alertas_estado ON alertas_sistema (estado);
 
 -- ---------------------------------------------------------------------
--- 16. TRANSACCIONES_PAGO
---    Punto 18: pagos en molinetes; con tarjeta Transmetro exige id_tarjeta.
+-- 17. TRANSACCIONES_PAGO
+--    Punto 18: pagos en molinetes solo con Tarjeta Ciudadana o tarjeta bancaria sin contacto.
 -- ---------------------------------------------------------------------
 CREATE TABLE transacciones_pago (
     id_transaccion  UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -271,18 +306,22 @@ CREATE TABLE transacciones_pago (
     monto           DECIMAL(8,2) NOT NULL,
     metodo_pago     VARCHAR(255) NOT NULL,
     fecha_hora      TIMESTAMP(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id_linea        UUID,
+    viaje_gratis    BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT transacciones_pago_pkey PRIMARY KEY (id_transaccion),
+    CONSTRAINT fk_transacciones_linea FOREIGN KEY (id_linea) REFERENCES lineas(id_linea) ON UPDATE CASCADE ON DELETE SET NULL,
     CONSTRAINT fk_transacciones_molinete FOREIGN KEY (id_molinete) REFERENCES molinetes(id_molinete) ON UPDATE CASCADE ON DELETE RESTRICT,
     CONSTRAINT fk_transacciones_tarjeta FOREIGN KEY (id_tarjeta) REFERENCES tarjetas(id_tarjeta) ON UPDATE CASCADE ON DELETE RESTRICT,
-    CONSTRAINT chk_transacciones_monto CHECK (monto > 0),
-    CONSTRAINT chk_transacciones_tarjeta CHECK (metodo_pago <> 'tarjeta_transmetro' OR id_tarjeta IS NOT NULL),
-    CONSTRAINT transacciones_pago_metodo_pago_check CHECK (metodo_pago IN ('tarjeta_transmetro', 'credito', 'debito', 'efectivo'))
+    CONSTRAINT chk_transacciones_monto CHECK (monto >= 0 AND (viaje_gratis OR monto > 0)),
+    CONSTRAINT chk_transacciones_tarjeta CHECK (metodo_pago <> 'tarjeta_ciudadana' OR id_tarjeta IS NOT NULL),
+    CONSTRAINT transacciones_pago_metodo_pago_check CHECK (metodo_pago IN ('tarjeta_ciudadana', 'tarjeta_bancaria'))
 );
 CREATE INDEX idx_transacciones_fecha ON transacciones_pago (fecha_hora);
+CREATE INDEX idx_transacciones_linea ON transacciones_pago (id_linea);
 CREATE INDEX idx_transacciones_tarjeta ON transacciones_pago (id_tarjeta);
 
 -- ---------------------------------------------------------------------
--- 17. BITACORA_AUDITORIA
+-- 18. BITACORA_AUDITORIA
 --    Auditoria de cambios (quien, que tabla, antes y despues).
 -- ---------------------------------------------------------------------
 CREATE TABLE bitacora_auditoria (
@@ -303,7 +342,7 @@ CREATE TABLE bitacora_auditoria (
 CREATE INDEX idx_bitacora_tabla ON bitacora_auditoria (tabla_afectada, id_registro_afectado);
 
 -- ---------------------------------------------------------------------
--- 18. VIAJES
+-- 19. VIAJES
 --    Punto 1: recorridos reales de cada bus.
 -- ---------------------------------------------------------------------
 CREATE TABLE viajes (
@@ -323,7 +362,7 @@ CREATE INDEX idx_viajes_bus ON viajes (id_bus);
 CREATE INDEX idx_viajes_linea ON viajes (id_linea);
 
 -- ---------------------------------------------------------------------
--- 19. VISITAS_VIAJE
+-- 20. VISITAS_VIAJE
 --    Puntos 1 y 15: paradas visitadas con hora de llegada/salida y ocupacion.
 -- ---------------------------------------------------------------------
 CREATE TABLE visitas_viaje (
@@ -505,6 +544,7 @@ ALTER TABLE municipios ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lineas ENABLE ROW LEVEL SECURITY;
 ALTER TABLE estaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE linea_estacion ENABLE ROW LEVEL SECURITY;
+ALTER TABLE horarios_linea ENABLE ROW LEVEL SECURITY;
 ALTER TABLE buses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE accesos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE molinetes ENABLE ROW LEVEL SECURITY;

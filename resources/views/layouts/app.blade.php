@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>@yield('titulo') · Transmetro</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('head')
 </head>
 <body class="min-h-screen bg-tm-50 font-sans text-slate-800 antialiased">
     <header class="bg-tm-900 text-white">
@@ -17,13 +18,26 @@
                 </div>
             </div>
 
-            <nav class="flex items-center gap-1 text-sm">
+            <nav class="flex flex-wrap items-center gap-1 text-sm">
                 @if (auth()->user()->esAdministrador())
-                    <a href="{{ route('admin.inicio') }}"
-                       class="rounded-md px-3 py-2 {{ request()->routeIs('admin.inicio') ? 'bg-tm-700' : 'hover:bg-tm-700' }}">Inicio</a>
+                    @foreach ([
+                        ['admin.inicio', 'admin.inicio', 'Inicio'],
+                        ['mapa', 'mapa', 'Mapa'],
+                        ['admin.lineas.index', 'admin.lineas.*', 'Líneas'],
+                        ['admin.estaciones.index', 'admin.estaciones.*', 'Estaciones'],
+                        ['admin.buses.index', 'admin.buses.*', 'Buses'],
+                        ['admin.personal.index', 'admin.personal.*', 'Personal'],
+                        ['admin.tarjetas.index', 'admin.tarjetas.*', 'Tarjetas'],
+                        ['admin.municipios.index', 'admin.municipios.*', 'Municipios'],
+                    ] as [$ruta, $patron, $texto])
+                        <a href="{{ route($ruta) }}"
+                           class="rounded-md px-3 py-2 {{ request()->routeIs($patron) ? 'bg-tm-700' : 'hover:bg-tm-700' }}">{{ $texto }}</a>
+                    @endforeach
                 @else
                     <a href="{{ route('operador.estacion') }}"
                        class="rounded-md px-3 py-2 {{ request()->routeIs('operador.*') ? 'bg-tm-700' : 'hover:bg-tm-700' }}">Mi estación</a>
+                    <a href="{{ route('mapa') }}"
+                       class="rounded-md px-3 py-2 {{ request()->routeIs('mapa') ? 'bg-tm-700' : 'hover:bg-tm-700' }}">Mapa</a>
                 @endif
             </nav>
 

@@ -1,6 +1,8 @@
 <?php
 
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\Tarjeta;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -14,9 +16,8 @@ use Tests\TestCase;
 |
 */
 
-pest()->extend(TestCase::class)
- // ->use(RefreshDatabase::class)
-    ->in('Feature');
+// TestCase ya usa RefreshDatabase con el esquema "pruebas" (ver tests/TestCase.php).
+pest()->extend(TestCase::class)->in('Feature');
 
 /*
 |--------------------------------------------------------------------------
@@ -29,22 +30,36 @@ pest()->extend(TestCase::class)
 |
 */
 
-expect()->extend('toBeOne', function () {
-    return $this->toBe(1);
-});
+// (sin expectativas personalizadas por ahora)
 
 /*
 |--------------------------------------------------------------------------
-| Functions
+| Funciones de apoyo
 |--------------------------------------------------------------------------
-|
-| While Pest is very powerful out-of-the-box, you may have some testing code specific to your
-| project that you don't want to repeat in every file. Here you can also expose helpers as
-| global functions to help you to reduce the number of lines of code in your test files.
-|
 */
 
-function something()
+/** Crea una Tarjeta Ciudadana de prueba con los valores indicados. */
+function tarjetaDePrueba(array $datos = []): Tarjeta
 {
-    // ..
+    return Tarjeta::create(array_merge([
+        'numero_tarjeta' => 'TCPRUEBA'.random_int(100000, 999999),
+        'tipo_tarjeta' => 'ciudadana',
+        'costo_emision' => Tarjeta::COSTO_EMISION,
+        'viajes_gratis_restantes' => 0,
+        'saldo' => 0,
+        'estado' => 'activa',
+    ], $datos))->refresh();
+}
+
+/** Ejecuta una operación que la base de datos debe rechazar y devuelve el mensaje del error. */
+function errorDeBD(callable $operacion): string
+{
+    try {
+        // La transacción interna (savepoint) permite seguir usando la conexión después del error.
+        DB::transaction($operacion);
+    } catch (QueryException $e) {
+        return $e->getMessage();
+    }
+
+    throw new RuntimeException('Se esperaba que la base de datos rechazara la operación.');
 }

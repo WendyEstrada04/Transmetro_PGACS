@@ -17,7 +17,7 @@ class TransmetroSeeder extends Seeder
 {
     private const TABLAS = [
         'bitacora_auditoria', 'visitas_viaje', 'viajes', 'transacciones_pago', 'recargas', 'tarjetas',
-        'alertas_sistema', 'operadores', 'seguridad', 'pilotos', 'users', 'empleados', 'parqueos',
+        'alertas_sistema', 'horarios_linea', 'operadores', 'seguridad', 'pilotos', 'users', 'empleados', 'parqueos',
         'molinetes', 'accesos', 'buses', 'linea_estacion', 'lineas', 'estaciones', 'municipios',
     ];
 

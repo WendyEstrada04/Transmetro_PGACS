@@ -14,6 +14,11 @@ Table lineas [headercolor: #0F3B2E] {
   codigo_linea "varchar(20)" [not null, unique]
   distancia_total_km "decimal(6,2)" [not null]
   estado "varchar(255)" [not null]
+  nombre "varchar(100)"
+  tipo_servicio "varchar(20)" [not null]
+  tarifa "decimal(5,2)" [not null]
+  color "varchar(7)" [not null]
+  ruta_circular boolean [not null]
 }
 
 Table estaciones [headercolor: #0F3B2E] {
@@ -24,6 +29,7 @@ Table estaciones [headercolor: #0F3B2E] {
   aforo_actual integer [not null]
   latitud "decimal(9,6)" [not null]
   longitud "decimal(9,6)" [not null]
+  direccion "varchar(200)"
 }
 
 Table linea_estacion [headercolor: #0F3B2E] {
@@ -34,6 +40,14 @@ Table linea_estacion [headercolor: #0F3B2E] {
   indexes {
     (id_linea, id_estacion) [pk]
   }
+}
+
+Table horarios_linea [headercolor: #B7791F] {
+  id_horario uuid [pk]
+  id_linea uuid [not null]
+  tipo_dia "varchar(20)" [not null]
+  hora_inicio "time without time zone" [not null]
+  hora_fin "time without time zone" [not null]
 }
 
 Table buses [headercolor: #0F3B2E] {
@@ -107,6 +121,11 @@ Table tarjetas [headercolor: #B7791F] {
   saldo "decimal(8,2)" [not null]
   estado "varchar(255)" [not null]
   fecha_emision timestamp [not null]
+  tipo_tarjeta "varchar(20)" [not null]
+  nombre_titular "varchar(200)"
+  dpi_titular "varchar(13)"
+  costo_emision "decimal(6,2)" [not null]
+  viajes_gratis_restantes integer [not null]
 }
 
 Table recargas [headercolor: #B7791F] {
@@ -134,6 +153,8 @@ Table transacciones_pago [headercolor: #0F3B2E] {
   monto "decimal(8,2)" [not null]
   metodo_pago "varchar(255)" [not null]
   fecha_hora timestamp [not null]
+  id_linea uuid
+  viaje_gratis boolean [not null]
 }
 
 Table bitacora_auditoria [headercolor: #0F3B2E] {
@@ -182,21 +203,23 @@ Ref fk_bitacora_usuario: bitacora_auditoria.id_usuario > users.id
 Ref fk_bitacora_empleado: bitacora_auditoria.id_empleado_usuario > empleados.id_empleado
 Ref fk_buses_linea: buses.id_linea_asignada > lineas.id_linea
 Ref fk_estaciones_municipio: estaciones.id_municipio > municipios.id_municipio
+Ref fk_horarios_linea: horarios_linea.id_linea > lineas.id_linea
 Ref fk_linea_estacion_estacion: linea_estacion.id_estacion > estaciones.id_estacion
 Ref fk_linea_estacion_linea: linea_estacion.id_linea > lineas.id_linea
 Ref fk_lineas_municipio: lineas.id_municipio > municipios.id_municipio
 Ref fk_molinetes_acceso: molinetes.id_acceso - accesos.id_acceso
 Ref fk_operadores_estacion: operadores.id_estacion_asignada > estaciones.id_estacion
 Ref fk_operadores_empleado: operadores.id_empleado - empleados.id_empleado
-Ref fk_parqueos_bus: parqueos.id_bus_asignado - buses.id_bus
 Ref fk_parqueos_estacion: parqueos.id_estacion > estaciones.id_estacion
-Ref fk_pilotos_bus: pilotos.id_bus_asignado - buses.id_bus
+Ref fk_parqueos_bus: parqueos.id_bus_asignado - buses.id_bus
 Ref fk_pilotos_empleado: pilotos.id_empleado - empleados.id_empleado
+Ref fk_pilotos_bus: pilotos.id_bus_asignado - buses.id_bus
 Ref fk_recargas_tarjeta: recargas.id_tarjeta > tarjetas.id_tarjeta
 Ref fk_seguridad_empleado: seguridad.id_empleado - empleados.id_empleado
 Ref fk_seguridad_acceso: seguridad.id_acceso_asignado > accesos.id_acceso
 Ref fk_transacciones_tarjeta: transacciones_pago.id_tarjeta > tarjetas.id_tarjeta
 Ref fk_transacciones_molinete: transacciones_pago.id_molinete > molinetes.id_molinete
+Ref fk_transacciones_linea: transacciones_pago.id_linea > lineas.id_linea
 Ref fk_users_empleado: users.id_empleado - empleados.id_empleado
 Ref fk_viajes_bus: viajes.id_bus > buses.id_bus
 Ref fk_viajes_linea: viajes.id_linea > lineas.id_linea

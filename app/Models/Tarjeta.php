@@ -24,13 +24,35 @@ class Tarjeta extends Model
         'saldo',
         'estado',
         'fecha_emision',
+        'tipo_tarjeta',
+        'nombre_titular',
+        'dpi_titular',
+        'costo_emision',
+        'viajes_gratis_restantes',
     ];
+
+    public const TIPOS = [
+        'ciudadana' => 'Tarjeta Ciudadana',
+        'adulto_mayor' => 'Adulto mayor',
+        'discapacidad' => 'Persona con discapacidad',
+    ];
+
+    /** Tarjeta Ciudadana: costo de emisión e incluye 5 viajes gratis; recargas de Q5 a Q200. */
+    public const COSTO_EMISION = 20.00;
+
+    public const VIAJES_GRATIS = 5;
+
+    public const RECARGA_MINIMA = 5;
+
+    public const RECARGA_MAXIMA = 200;
 
     protected function casts(): array
     {
         return [
             'saldo' => 'decimal:2',
             'fecha_emision' => 'datetime',
+            'costo_emision' => 'decimal:2',
+            'viajes_gratis_restantes' => 'integer',
         ];
     }
 

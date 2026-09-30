@@ -26,12 +26,24 @@ class Linea extends Model
         'codigo_linea',
         'distancia_total_km',
         'estado',
+        'nombre',
+        'tipo_servicio',
+        'tarifa',
+        'color',
+        'ruta_circular',
+    ];
+
+    public const TIPOS_SERVICIO = [
+        'paradas_continuas' => 'Paradas continuas (Q1.00)',
+        'directo' => 'Directo (Q2.00)',
     ];
 
     protected function casts(): array
     {
         return [
             'distancia_total_km' => 'decimal:2',
+            'tarifa' => 'decimal:2',
+            'ruta_circular' => 'boolean',
         ];
     }
 
@@ -51,6 +63,11 @@ class Linea extends Model
     public function buses(): HasMany
     {
         return $this->hasMany(Bus::class, 'id_linea_asignada', 'id_linea');
+    }
+
+    public function horarios(): HasMany
+    {
+        return $this->hasMany(HorarioLinea::class, 'id_linea', 'id_linea');
     }
 
     public function viajes(): HasMany
@@ -74,5 +91,23 @@ class Linea extends Model
     public function accesos()
     {
         return Acceso::whereIn('id_estacion', $this->estaciones()->pluck('estaciones.id_estacion'))->get();
+    }
+
+    /** Horario de servicio del día indicado (o de hoy). */
+    public function horarioDelDia(?\DateTimeInterface $fecha = null): ?HorarioLinea
+    {
+        $tipo = HorarioLinea::tipoDiaDe($fecha ?? now());
+
+        return $this->horarios->firstWhere('tipo_dia', $tipo);
+    }
+
+    /** ¿La línea está en su horario de servicio en este momento? */
+    public function enServicio(?\DateTimeInterface $momento = null): bool
+    {
+        $momento ??= now();
+        $horario = $this->horarioDelDia($momento);
+        $hora = $momento->format('H:i');
+
+        return $this->estado === 'activa' && $horario && $hora >= $horario->inicio() && $hora <= $horario->fin();
     }
 }
