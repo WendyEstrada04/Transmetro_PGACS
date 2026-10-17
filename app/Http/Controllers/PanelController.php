@@ -14,6 +14,6 @@ class PanelController extends Controller
     {
         return $request->user()->esAdministrador()
             ? redirect()->route('admin.inicio')
-            : redirect()->route('operador.estacion');
+            : redirect()->route('operador.inicio');
     }
 }

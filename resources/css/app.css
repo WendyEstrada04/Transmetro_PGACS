@@ -3,55 +3,945 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
-
-    /* Colores del Transmetro */
-    --color-tm-50: #eef7f2;
-    --color-tm-100: #d6ebe0;
-    --color-tm-300: #8fc1a8;
-    --color-tm-500: #1f6f54;
-    --color-tm-700: #155240;
-    --color-tm-900: #0f3b2e;
+/* Tipografía: Avenir (si está instalada, como en Mac) y, si no, Nunito Sans, su equivalente libre (licencia OFL),
+   incluida en public/fonts para que se vea igual en cualquier computadora sin descargar nada de internet. */
+@font-face {
+    font-family: 'Nunito Sans Variable';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 200 1000;
+    src: url('/fonts/nunito-sans/nunito-sans-latin-ext-wght-normal.woff2') format('woff2-variations');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF,
+        U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+    font-family: 'Nunito Sans Variable';
+    font-style: normal;
+    font-display: swap;
+    font-weight: 200 1000;
+    src: url('/fonts/nunito-sans/nunito-sans-latin-wght-normal.woff2') format('woff2-variations');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+        U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-/* Componentes reutilizables del sistema */
+@theme {
+    --font-sans: 'Avenir Next', 'Avenir', 'Nunito Sans Variable', 'Nunito Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji';
+
+    /* Curvas de movimiento: “suave” para entradas largas (estilo Wix), “mac” para paneles. */
+    --ease-suave: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-mac: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /* Identidad gráfica del Transmetro:
+       cielo #8EB9FC · niebla #99ACC9 · acero #7E8896 · pizarra #404D63 · noche #162133 */
+    --color-cielo: #8eb9fc;
+    --color-niebla: #99acc9;
+    --color-acero: #7e8896;
+    --color-pizarra: #404d63;
+    --color-noche: #162133;
+    --color-papel: #f5f7fb;
+
+    /* Escala tm-* que usan todas las pantallas, construida con la paleta. */
+    --color-tm-50: #f5f7fb;
+    --color-tm-100: #e6edf9;
+    --color-tm-200: #ccdaf2;
+    --color-tm-300: #8eb9fc;
+    --color-tm-400: #99acc9;
+    --color-tm-500: #4f7fd8;
+    --color-tm-600: #7e8896;
+    --color-tm-700: #404d63;
+    --color-tm-800: #26324a;
+    --color-tm-900: #162133;
+
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --shadow-sm: 0 0 0 1px rgb(22 33 51 / 0.06), 0 22px 44px -30px rgb(22 33 51 / 0.45);
+    --shadow-md: 0 0 0 1px rgb(22 33 51 / 0.06), 0 30px 60px -32px rgb(22 33 51 / 0.55);
+}
+
+/* ===========================================================================
+   Base
+=========================================================================== */
+html {
+    scroll-behavior: smooth;
+}
+body {
+    overflow-x: clip;
+}
+::selection {
+    background: #8eb9fc;
+    color: #162133;
+}
+
+/* Cambio de página fluido (Chrome/Edge): la página sale hacia arriba y la nueva sube suavemente. */
+@view-transition {
+    navigation: auto;
+}
+::view-transition-old(root) {
+    animation: 0.3s var(--ease-suave) both salir-pagina;
+}
+::view-transition-new(root) {
+    animation: 0.7s var(--ease-suave) both entrar-pagina;
+}
+@keyframes salir-pagina {
+    to {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+}
+@keyframes entrar-pagina {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+}
+
+/* Texto pequeño en mayúsculas espaciadas (rótulos editoriales). */
+.rotulo {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+/* Aparición al desplazarse: los bloques de cada pantalla suben y se aclaran al entrar en pantalla
+   (solo si hay JavaScript; resources/js/app.js les pone la clase “visible”). */
+.js .contenido > :not(.banda),
+.js .revelar {
+    opacity: 0;
+    transform: translateY(32px);
+}
+.js .contenido > .visible,
+.js .revelar.visible {
+    opacity: 1;
+    transform: none;
+    transition:
+        opacity 1s var(--ease-suave),
+        transform 1.1s var(--ease-suave);
+    transition-delay: var(--retraso, 0ms);
+}
+
+/* Títulos que suben desde una máscara, línea por línea. */
+.mascara {
+    display: block;
+    overflow: hidden;
+    padding-bottom: 0.08em;
+}
+.mascara > span {
+    display: inline-block;
+    animation: subir-texto 1.1s var(--ease-suave) both;
+    animation-delay: var(--retraso, 0ms);
+}
+@keyframes subir-texto {
+    from {
+        transform: translateY(110%);
+    }
+}
+@keyframes aparecer {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+.aparecer {
+    animation: aparecer 0.9s var(--ease-suave) both;
+    animation-delay: var(--retraso, 0ms);
+}
+
+/* Trazos que se dibujan solos (ilustraciones de rutas). */
+.dibujar {
+    stroke-dasharray: var(--largo, 1200);
+    stroke-dashoffset: var(--largo, 1200);
+    animation: dibujar 2.4s var(--ease-suave) forwards;
+    animation-delay: var(--retraso, 0ms);
+}
+@keyframes dibujar {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+.estallar {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: estallar 0.7s var(--ease-suave) both;
+    animation-delay: var(--retraso, 0ms);
+}
+@keyframes estallar {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+}
+
+/* ===========================================================================
+   Encabezado
+=========================================================================== */
+.barra {
+    view-transition-name: encabezado;
+    background: rgb(255 255 255 / 0.94);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgb(22 33 51 / 0.07);
+    transition: box-shadow 0.4s ease;
+}
+.barra.con-sombra {
+    box-shadow: 0 12px 30px -20px rgb(22 33 51 / 0.45);
+}
+.nav-enlace {
+    position: relative;
+    padding: 0.5rem 0.15rem;
+    font-weight: 700;
+    color: #7e8896;
+    transition: color 0.3s ease;
+}
+.nav-enlace::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0.15rem;
+    height: 2px;
+    background: #8eb9fc;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.5s var(--ease-suave);
+}
+.nav-enlace:hover {
+    color: #162133;
+}
+.nav-enlace:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+}
+.nav-enlace.activo {
+    color: #162133;
+}
+.nav-enlace.activo::after {
+    transform: scaleX(1);
+    background: #162133;
+}
+
+/* Menú “Gestión”: se despliega como una cortina. */
+.menu-gestion > summary {
+    list-style: none;
+}
+.menu-gestion > summary::-webkit-details-marker {
+    display: none;
+}
+.menu-gestion[open] .menu-cortina {
+    animation: cortina 0.55s var(--ease-suave) both;
+}
+@keyframes cortina {
+    from {
+        clip-path: inset(0 0 100% 0);
+        transform: translateY(-6px);
+    }
+    to {
+        clip-path: inset(0 0 0 0);
+    }
+}
+.menu-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid rgb(22 33 51 / 0.07);
+    overflow: hidden;
+    isolation: isolate;
+}
+.menu-item::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: #162133;
+    transform: translateX(-101%);
+    transition: transform 0.55s var(--ease-suave);
+}
+.menu-item:hover::before {
+    transform: none;
+}
+/* Menú con muchas opciones (Reportes): filas más bajas. */
+.menu-compacto .menu-item {
+    padding: 0.6rem 1.1rem;
+}
+.menu-item:hover,
+.menu-item:hover * {
+    color: #fff !important;
+}
+.menu-item .flecha {
+    transition: transform 0.5s var(--ease-suave);
+}
+.menu-item:hover .flecha {
+    transform: translateX(4px);
+}
+
+/* ===========================================================================
+   Banda de título de cada pantalla (bloque de color a todo lo ancho con ilustración)
+=========================================================================== */
+.banda {
+    position: relative;
+    margin-top: -1.5rem;
+    margin-inline: calc(50% - 50vw);
+    padding-inline: calc(50vw - 50%);
+    background:
+        radial-gradient(900px 300px at 85% 120%, rgb(142 185 252 / 0.28), transparent 70%),
+        #162133;
+    color: #fff;
+    overflow: hidden;
+}
+
+/* Variantes de la banda: cada sección tiene su tono para no sentirse repetitiva. */
+.banda-cielo {
+    background:
+        radial-gradient(900px 320px at 90% 110%, rgb(255 255 255 / 0.55), transparent 70%),
+        linear-gradient(120deg, #8eb9fc 0%, #b8d2fd 100%);
+    color: #162133;
+}
+.banda-pizarra {
+    background:
+        radial-gradient(800px 320px at 80% -20%, rgb(142 185 252 / 0.35), transparent 70%),
+        linear-gradient(120deg, #404d63 0%, #2b374d 100%);
+}
+.banda-papel {
+    background:
+        radial-gradient(900px 300px at 85% 120%, rgb(142 185 252 / 0.35), transparent 70%),
+        #ffffff;
+    color: #162133;
+    border-bottom: 1px solid rgb(22 33 51 / 0.07);
+}
+.banda-cielo .rotulo-banda,
+.banda-papel .rotulo-banda {
+    color: #404d63;
+}
+.banda-cielo .rotulo-banda span,
+.banda-papel .rotulo-banda span {
+    background: #404d63;
+}
+.banda-cielo .texto-banda,
+.banda-papel .texto-banda {
+    color: #404d63;
+}
+.banda.banda-cielo .btn-primario,
+.banda.banda-papel .btn-primario {
+    background: #162133;
+    color: #fff;
+}
+.banda.banda-cielo .btn-primario::before,
+.banda.banda-papel .btn-primario::before {
+    background: #fff;
+}
+.banda.banda-cielo .btn-primario:hover,
+.banda.banda-papel .btn-primario:hover {
+    color: #162133;
+}
+.banda.banda-cielo .btn-secundario,
+.banda.banda-papel .btn-secundario {
+    color: #162133;
+    box-shadow: inset 0 0 0 1.5px #162133;
+}
+.banda.banda-cielo .btn-secundario::before,
+.banda.banda-papel .btn-secundario::before {
+    background: #162133;
+}
+.banda.banda-cielo .btn-secundario:hover,
+.banda.banda-papel .btn-secundario:hover {
+    color: #fff;
+}
+.banda-cielo .volver-banda,
+.banda-papel .volver-banda {
+    color: #404d63;
+}
+
+/* Animaciones de las ilustraciones de cada banda. */
+@keyframes rodar {
+    to {
+        stroke-dashoffset: -60;
+    }
+}
+.rodar {
+    animation: rodar 1.2s linear infinite;
+}
+@keyframes girar {
+    to {
+        transform: rotate(360deg);
+    }
+}
+.girar {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: girar 1.4s linear infinite;
+}
+@keyframes llegar {
+    from {
+        transform: translateX(420px);
+    }
+}
+.llegar {
+    animation: llegar 2.2s var(--ease-suave) both;
+}
+@keyframes onda {
+    from {
+        transform: scale(0.4);
+        opacity: 0.9;
+    }
+    to {
+        transform: scale(2.4);
+        opacity: 0;
+    }
+}
+.onda {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: onda 3s ease-out infinite;
+    animation-delay: var(--retraso, 0ms);
+}
+@keyframes latir-trazo {
+    0% {
+        stroke-dashoffset: 900;
+    }
+    70%,
+    100% {
+        stroke-dashoffset: 0;
+    }
+}
+.latir-trazo {
+    stroke-dasharray: 900;
+    animation: latir-trazo 3.2s var(--ease-suave) infinite;
+}
+@keyframes vaiven {
+    50% {
+        transform: translateY(-10px) rotate(var(--giro, 0deg));
+    }
+}
+.vaiven {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: vaiven 6s ease-in-out infinite;
+    animation-delay: var(--retraso, 0ms);
+}
+
+/* Botones y enlaces sobre la banda oscura. */
+.banda .btn-primario {
+    background: #8eb9fc;
+    color: #162133;
+}
+.banda .btn-primario::before {
+    background: #fff;
+}
+.banda .btn-secundario {
+    color: #fff;
+    box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.55);
+}
+.banda .btn-secundario::before {
+    background: #fff;
+}
+.banda .btn-secundario:hover {
+    color: #162133;
+}
+.banda .enlace {
+    color: #fff;
+}
+
+/* ===========================================================================
+   Componentes
+=========================================================================== */
 @layer components {
+    /* Botones: al pasar el mouse un color “barre” el botón de abajo hacia arriba. */
     .btn {
-        @apply inline-flex items-center justify-center gap-1 rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap;
+        @apply relative inline-flex items-center justify-center gap-2 overflow-hidden rounded-full px-5 py-2.5 text-sm font-extrabold whitespace-nowrap;
+        isolation: isolate;
+        transition:
+            color 0.45s var(--ease-suave),
+            box-shadow 0.45s var(--ease-suave);
+    }
+    .btn::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        border-radius: inherit;
+        transform: translateY(101%);
+        transition: transform 0.55s var(--ease-suave);
+    }
+    .btn:hover::before {
+        transform: none;
+    }
+    .btn:active {
+        transform: scale(0.98);
     }
     .btn-primario {
-        @apply bg-tm-700 text-white hover:bg-tm-900;
+        @apply bg-noche text-white;
+    }
+    .btn-primario::before {
+        background: #8eb9fc;
+    }
+    .btn-primario:hover {
+        @apply text-noche;
+        box-shadow: 0 14px 30px -14px rgb(142 185 252 / 0.9);
     }
     .btn-secundario {
-        @apply border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+        @apply bg-transparent text-noche;
+        box-shadow: inset 0 0 0 1.5px #162133;
+    }
+    .btn-secundario::before {
+        background: #162133;
+    }
+    .btn-secundario:hover {
+        @apply text-white;
     }
     .btn-peligro {
-        @apply bg-red-600 text-white hover:bg-red-700;
+        @apply bg-transparent text-red-600;
+        box-shadow: inset 0 0 0 1.5px #dc2626;
+    }
+    .btn-peligro::before {
+        background: #dc2626;
+    }
+    .btn-peligro:hover {
+        @apply text-white;
     }
     .btn-chico {
-        @apply px-2.5 py-1 text-xs;
+        @apply px-3.5 py-1 text-xs;
     }
     .caja {
-        @apply rounded-lg bg-white p-5 shadow-sm;
+        @apply rounded-xl bg-white p-6 shadow-sm;
     }
     .tabla {
         @apply w-full text-left text-sm;
     }
     .tabla thead {
-        @apply bg-tm-900 text-white;
+        @apply border-b border-noche/10 bg-white text-acero;
     }
     .tabla th {
-        @apply px-4 py-2 font-medium;
+        @apply px-4 py-3.5 text-[11px] font-extrabold tracking-[0.16em] uppercase;
     }
     .tabla td {
-        @apply border-t border-slate-100 px-4 py-2 align-top;
+        @apply border-t border-noche/[0.06] px-4 py-3.5 align-top;
     }
+    .tabla tbody tr {
+        transition:
+            background-color 0.3s ease,
+            box-shadow 0.3s ease;
+    }
+    .tabla tbody tr:hover {
+        background: #f3f7fe;
+        box-shadow: inset 3px 0 0 #8eb9fc;
+    }
+    /* Enlace con subrayado que se dibuja al pasar el mouse. */
     .enlace {
-        @apply font-medium text-tm-700 underline-offset-2 hover:underline;
+        @apply font-extrabold text-pizarra;
+        background: linear-gradient(#8eb9fc, #8eb9fc) 0 100% / 0 2px no-repeat;
+        transition:
+            background-size 0.45s var(--ease-suave),
+            color 0.3s ease;
+    }
+    .enlace:hover {
+        @apply text-noche;
+        background-size: 100% 2px;
     }
     .etiqueta {
-        @apply inline-block rounded-full px-2 py-0.5 text-xs;
+        @apply inline-block rounded-full px-2.5 py-0.5 text-[11px] font-bold;
+    }
+}
+
+/* ===========================================================================
+   Pantalla principal: barra lateral de rutas + mapa + panel con cortina
+=========================================================================== */
+.mapa-plano {
+    background: #eef2f8;
+}
+.mapa-plano .leaflet-container {
+    background: transparent;
+    font-family: var(--font-sans);
+}
+.mapa-plano .leaflet-tile-pane {
+    /* Calles en gris azulado muy tenue para que solo resalten los colores de las rutas. */
+    filter: grayscale(1) sepia(0.25) hue-rotate(185deg) saturate(1.4) contrast(0.78) brightness(1.1);
+    mix-blend-mode: multiply;
+    opacity: 0.5;
+    transition: opacity 0.6s ease;
+}
+.mapa-plano.sin-calles .leaflet-tile-pane {
+    opacity: 0;
+}
+.mapa-plano .leaflet-control-attribution {
+    background: rgb(255 255 255 / 0.7);
+    font-size: 10px;
+}
+/* Sin el marco negro de “foco” que el navegador dibuja alrededor de una ruta al tocarla. */
+.leaflet-container .leaflet-interactive:focus,
+.leaflet-container .leaflet-interactive:focus-visible,
+.leaflet-container path:focus,
+.leaflet-container svg:focus {
+    outline: none;
+}
+.mapa-plano .leaflet-interactive {
+    transition:
+        stroke-opacity 0.45s ease,
+        stroke-width 0.35s var(--ease-suave),
+        fill-opacity 0.45s ease;
+}
+.mapa-plano .leaflet-tooltip {
+    border: 0;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font: 700 12px/1.2 var(--font-sans);
+    color: #fff;
+    background: #162133;
+    box-shadow: 0 12px 24px -12px rgb(22 33 51 / 0.7);
+}
+.mapa-plano .leaflet-tooltip-top::before {
+    border-top-color: #162133;
+}
+.mapa-plano .leaflet-control-zoom.leaflet-bar {
+    border: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    box-shadow: 0 16px 30px -18px rgb(22 33 51 / 0.6);
+}
+.mapa-plano .leaflet-control-zoom a {
+    width: 38px;
+    height: 38px;
+    line-height: 38px;
+    color: #162133;
+    border-bottom-color: rgb(22 33 51 / 0.08);
+}
+.mapa-plano .leaflet-control-zoom a:hover {
+    background: #162133;
+    color: #fff;
+}
+
+/* Fila de ruta en la barra lateral: al pasar el mouse el color de la línea “barre” la fila. */
+.fila-ruta {
+    position: relative;
+    display: grid;
+    grid-template-columns: 4.6rem 1fr auto;
+    align-items: center;
+    width: 100%;
+    padding: 0.85rem 1.5rem;
+    text-align: left;
+    border-bottom: 1px solid rgb(22 33 51 / 0.06);
+    isolation: isolate;
+    overflow: hidden;
+}
+.fila-ruta::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--c);
+    opacity: 0.1;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.6s var(--ease-suave), opacity 0.4s ease;
+}
+.fila-ruta::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background: var(--c);
+    transform: scaleY(0);
+    transition: transform 0.5s var(--ease-suave);
+}
+.fila-ruta:hover::before {
+    transform: none;
+}
+.fila-ruta[aria-pressed='true']::before {
+    transform: none;
+    opacity: 0.16;
+}
+.fila-ruta[aria-pressed='true']::after {
+    transform: none;
+}
+.fila-ruta .codigo {
+    font-size: 30px;
+    font-weight: 900;
+    letter-spacing: -0.05em;
+    line-height: 1;
+    color: var(--c-legible);
+    transition: transform 0.5s var(--ease-suave);
+}
+.fila-ruta:hover .codigo,
+.fila-ruta[aria-pressed='true'] .codigo {
+    transform: translateX(6px);
+}
+.fila-ruta .flecha {
+    opacity: 0;
+    transform: translateX(-10px);
+    transition:
+        opacity 0.4s ease,
+        transform 0.5s var(--ease-suave);
+}
+.fila-ruta:hover .flecha,
+.fila-ruta[aria-pressed='true'] .flecha {
+    opacity: 1;
+    transform: none;
+}
+
+/* Cinta de datos que corre sin parar (marquesina). */
+.cinta {
+    overflow: hidden;
+    mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.cinta-pista {
+    display: flex;
+    width: max-content;
+    animation: correr 45s linear infinite;
+}
+.cinta:hover .cinta-pista {
+    animation-play-state: paused;
+}
+@keyframes correr {
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+/* Panel de la ruta: se abre como una cortina desde la derecha. */
+.tablero .leaflet-right {
+    transition: transform 0.8s var(--ease-suave);
+}
+.tablero.panel-abierto .leaflet-right {
+    transform: translateX(calc(-1 * var(--ancho-panel)));
+}
+.panel-linea {
+    clip-path: inset(0 0 0 100%);
+    transition: clip-path 0.85s var(--ease-suave);
+    pointer-events: none;
+}
+.panel-abierto .panel-linea {
+    clip-path: inset(0 0 0 0);
+    pointer-events: auto;
+}
+
+/* Contenido que aparece en cascada (cada hijo trae --i con su turno). */
+.cascada > * {
+    animation: aparecer 0.8s var(--ease-suave) both;
+    animation-delay: calc(var(--i, 0) * 55ms + 120ms);
+}
+.quieto .cascada > *,
+.quieto .mascara > span,
+.quieto .dibujar,
+.quieto .aparecer,
+.quieto .estallar,
+.quieto .crecer,
+.quieto .crecer-x,
+.quieto .anillo {
+    animation: none;
+    stroke-dashoffset: 0;
+}
+.saliendo {
+    opacity: 0;
+    transform: translateX(24px);
+    transition:
+        opacity 0.25s ease,
+        transform 0.3s ease;
+}
+
+/* Barras que crecen al aparecer. */
+.crecer {
+    transform-origin: bottom;
+    animation: crecer 0.9s var(--ease-suave) both;
+    animation-delay: calc(var(--i, 0) * 60ms + 300ms);
+}
+@keyframes crecer {
+    from {
+        transform: scaleY(0);
+    }
+}
+.crecer-x {
+    transform-origin: left;
+    animation: crecer-x 1.1s var(--ease-suave) both;
+    animation-delay: 250ms;
+}
+@keyframes crecer-x {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+/* Anillo de ocupación que se llena al aparecer. */
+.anillo {
+    animation: anillo 1.4s var(--ease-suave) both;
+    animation-delay: 300ms;
+}
+@keyframes anillo {
+    from {
+        stroke-dasharray: 0 var(--arco);
+    }
+}
+
+/* Tarjeta Ciudadana dibujada como tarjeta física: se inclina y la cruza un brillo al pasar el mouse. */
+.tarjeta-fisica {
+    position: relative;
+    aspect-ratio: 1.586;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 24px 44px -26px rgb(22 33 51 / 0.65);
+    transition:
+        transform 0.7s var(--ease-suave),
+        box-shadow 0.7s var(--ease-suave);
+}
+.tarjeta-fisica::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 35%, rgb(255 255 255 / 0.35) 50%, transparent 65%);
+    transform: translateX(-120%);
+    transition: transform 0.9s var(--ease-suave);
+}
+.group:hover .tarjeta-fisica {
+    transform: translateY(-6px) rotate(-1.5deg);
+    box-shadow: 0 36px 60px -28px rgb(22 33 51 / 0.75);
+}
+.group:hover .tarjeta-fisica::after {
+    transform: translateX(120%);
+}
+
+/* Vista previa de la tarjeta elegida: entra girando como si se diera vuelta. */
+.tarjeta-escena {
+    perspective: 1200px;
+}
+.tarjeta-entra {
+    animation: tarjeta-entra 0.8s var(--ease-suave) both;
+}
+@keyframes tarjeta-entra {
+    from {
+        opacity: 0;
+        transform: rotateY(-70deg) translateX(40px) scale(0.92);
+    }
+}
+.fila-tarjeta {
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+.fila-tarjeta::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: #8eb9fc;
+    transform: scaleY(0);
+    transition: transform 0.45s var(--ease-suave);
+}
+.fila-tarjeta:hover {
+    background: #f5f8fe;
+}
+.fila-tarjeta[aria-selected='true'] {
+    background: #eef4fd;
+}
+.fila-tarjeta[aria-selected='true']::before {
+    transform: none;
+}
+
+/* Pestañas del panel con subrayado que se desliza. */
+.pestanas {
+    position: relative;
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid rgb(22 33 51 / 0.08);
+}
+.pestanas button {
+    flex-shrink: 0;
+    padding: 0.9rem 0;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #7e8896;
+    transition: color 0.3s ease;
+}
+.pestanas button:hover,
+.pestanas button[aria-selected='true'] {
+    color: #162133;
+}
+.pestanas .indicador {
+    position: absolute;
+    bottom: 0;
+    height: 3px;
+    background: #162133;
+    transition:
+        left 0.5s var(--ease-suave),
+        width 0.5s var(--ease-suave);
+}
+
+/* Cifras grandes del resumen, separadas por líneas finas. */
+.cifras {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid rgb(22 33 51 / 0.08);
+}
+.cifras > div {
+    padding: 1.1rem 0;
+    border-bottom: 1px solid rgb(22 33 51 / 0.08);
+}
+.cifras > div:nth-child(odd) {
+    padding-right: 1rem;
+    border-right: 1px solid rgb(22 33 51 / 0.08);
+}
+.cifras > div:nth-child(even) {
+    padding-left: 1.25rem;
+}
+
+/* Carga: bloques que brillan mientras llega la información. */
+@keyframes brillo {
+    to {
+        background-position: -200% 0;
+    }
+}
+.esqueleto {
+    background: linear-gradient(90deg, #e6edf9 25%, #f5f7fb 50%, #e6edf9 75%);
+    background-size: 200% 100%;
+    animation: brillo 1.2s linear infinite;
+}
+
+@keyframes latido {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgb(239 68 68 / 0.55);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgb(239 68 68 / 0);
+    }
+}
+.latido {
+    animation: latido 1.8s ease-in-out infinite;
+}
+
+/* Bus que recorre una ruta en las ilustraciones. */
+@keyframes flotar {
+    50% {
+        transform: translateY(-6px);
+    }
+}
+.flotar {
+    animation: flotar 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    .js .contenido > :not(.banda),
+    .js .revelar {
+        opacity: 1;
+        transform: none;
     }
 }

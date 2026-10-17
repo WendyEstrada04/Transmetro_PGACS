@@ -1,0 +1,49 @@
+# Publicación del Sistema de Control Transmetro en Render (Blueprint).
+# Render construye la imagen con el Dockerfile y la base de datos sigue en Supabase.
+services:
+  - type: web
+    name: transmetro
+    runtime: docker
+    plan: free
+    region: virginia          # cerca de Supabase (us-east-1): las páginas responden más rápido
+    healthCheckPath: /up
+    autoDeploy: true
+    envVars:
+      - key: APP_NAME
+        value: Transmetro
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false           # se copia del archivo .env de la laptop
+      - key: APP_URL
+        sync: false           # la dirección que da Render, por ejemplo https://transmetro.onrender.com
+      - key: APP_LOCALE
+        value: es
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: warning
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        value: postgres
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSLMODE
+        value: require
+      - key: SESSION_DRIVER
+        value: file
+      - key: SESSION_SECURE_COOKIE
+        value: "true"
+      - key: CACHE_STORE
+        value: file
+      - key: QUEUE_CONNECTION
+        value: sync

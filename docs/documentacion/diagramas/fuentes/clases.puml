@@ -1,0 +1,185 @@
+@startuml
+!include comun.iuml
+title Diagrama de Clases — Sistema de Control Transmetro (modelos Laravel / Eloquent)
+hide empty members
+skinparam classAttributeIconSize 0
+class Municipio {
+  -idMunicipio: UUID
+  -codigoIso: String
+  -nombre: String
+  -activo: Boolean
+}
+class Linea {
+  -idLinea: UUID
+  -codigoLinea: String
+  -nombre: String
+  -tipoServicio: {paradas_continuas, directo}
+  -tarifa: Decimal
+  -color: String
+  -rutaCircular: Boolean
+  -trazo: JSON
+  -distanciaTotalKm: Decimal
+  -estado: {activa, inactiva, mantenimiento}
+  +minimoBuses(): int
+  +maximoBuses(): int
+  +accesos(): Acceso[]
+  +horarioDelDia(fecha): HorarioLinea
+  +enServicio(momento): bool
+  +colorTexto(): String
+}
+class HorarioLinea {
+  -tipoDia: {lunes_viernes, sabado, domingo_feriado}
+  -horaInicio: Time
+  -horaFin: Time
+  +tipoDiaDe(fecha): String
+}
+class LineaEstacion <<asociativa>> {
+  -ordenParada: Integer
+  -distanciaPreviaKm: Decimal
+}
+class Estacion {
+  -idEstacion: UUID
+  -nombre: String
+  -direccion: String
+  -aforoMaximo: Integer
+  -aforoActual: Integer
+  -latitud: Decimal
+  -longitud: Decimal
+  +porcentajeAforo(): float
+  +requiereRefuerzo(): bool
+}
+class Acceso {
+  -idAcceso: UUID
+  -ubicacionFisica: String
+}
+class Molinete {
+  -idMolinete: UUID
+  -ipAddress: String
+  -estadoOperativo: {activo, inactivo, mantenimiento}
+}
+class Parqueo {
+  -idParqueo: UUID
+  -codigoBahia: String
+}
+class Bus {
+  -idBus: UUID
+  -placa: String
+  -capacidadMaxima: Integer
+  -ocupacionActualPct: Decimal
+  -estadoLogico: {en_ruta, en_espera, fuera_de_servicio, en_mantenimiento}
+  +minutosEsperaExtra(): int
+  +cambiarParqueo(idParqueo): void
+}
+abstract class Empleado {
+  -idEmpleado: UUID
+  -dpi: String
+  -nombreCompleto: String
+  -fechaNacimiento: Date
+  -contacto: String <<cifrado>>
+  -direccion: String <<cifrado>>
+  -activo: Boolean
+}
+class Piloto {
+  -numeroLicencia: String
+  -tipoLicencia: String
+  -aniosExperiencia: Integer
+  -nivelEducativo: String
+  -historialEducativo: String <<cifrado>>
+}
+class Seguridad {
+  -permisosVigentes: String
+  -constanciaAntecedentesPenales: String
+  -numeroPlacaAsignada: String
+}
+class Operador {
+  -nivelEstudios: String
+  -aniosExperienciaMonitoreo: Integer
+}
+class Usuario {
+  -nombre: String
+  -email: String
+  -password: String <<bcrypt>>
+  -rol: {administrador, operador}
+  +esAdministrador(): bool
+  +esOperador(): bool
+}
+class Tarjeta {
+  -numeroTarjeta: String
+  -tipoTarjeta: {ciudadana, adulto_mayor, discapacidad}
+  -nombreTitular: String
+  -dpiTitular: String
+  -saldo: Decimal
+  -viajesGratisRestantes: Integer
+  -costoEmision: Decimal
+  -estado: {activa, bloqueada, vencida}
+}
+class Recarga {
+  -monto: Decimal [5..200]
+  -metodoPago: {efectivo, debito, credito, en_linea}
+  -fechaHora: DateTime
+}
+class TransaccionPago {
+  -monto: Decimal
+  -metodoPago: {tarjeta_ciudadana, tarjeta_bancaria}
+  -viajeGratis: Boolean
+  -fechaHora: DateTime
+}
+class AlertaSistema {
+  -tipoAlerta: String
+  -descripcion: String
+  -estado: {abierta, atendida, cerrada}
+  -fechaCreacion: DateTime
+  -fechaCierre: DateTime
+}
+class Viaje {
+  -fechaHoraInicio: DateTime
+  -fechaHoraFin: DateTime
+  -estado: {en_curso, finalizado, cancelado}
+}
+class VisitaViaje {
+  -ordenVisita: Integer
+  -horaLlegada: DateTime
+  -horaSalida: DateTime
+  -ocupacionAlLlegarPct: Decimal
+}
+class BitacoraAuditoria {
+  -tablaAfectada: String
+  -idRegistroAfectado: String
+  -accion: {INSERT, UPDATE, DELETE}
+  -datosPrevios: JSON
+  -datosNuevos: JSON
+  -fechaRegistro: DateTime
+}
+class CobroPasaje <<servicio>> {
+  +cobrar(molinete, linea, metodo, numeroTarjeta): TransaccionPago
+}
+Municipio "1" -- "0..*" Linea
+Municipio "1" -- "0..*" Estacion
+Linea "1" -- "3" HorarioLinea
+Linea "1..*" -- "1..*" Estacion
+(Linea, Estacion) .. LineaEstacion
+Estacion "1" *-- "2..*" Acceso
+Acceso "1" *-- "0..1" Molinete
+Estacion "1" -- "0..*" Parqueo
+Parqueo "0..1" -- "0..1" Bus : ocupa >
+Linea "0..1" -- "0..*" Bus : asignado a <
+Empleado <|-- Piloto
+Empleado <|-- Seguridad
+Empleado <|-- Operador
+Piloto "0..1" -- "0..1" Bus : conduce >
+Seguridad "1..*" -- "0..1" Acceso : vigila >
+Operador "0..*" -- "0..1" Estacion : opera >
+Usuario "0..1" -- "0..1" Empleado
+Tarjeta "1" -- "0..*" Recarga
+Tarjeta "0..1" -- "0..*" TransaccionPago
+Molinete "1" -- "0..*" TransaccionPago
+Linea "1" -- "0..*" TransaccionPago : tarifa >
+Estacion "1" -- "0..*" AlertaSistema
+Bus "1" -- "0..*" Viaje
+Linea "1" -- "0..*" Viaje
+Viaje "1" *-- "1..*" VisitaViaje
+Estacion "1" -- "0..*" VisitaViaje
+Usuario "0..1" -- "0..*" BitacoraAuditoria : registra >
+CobroPasaje ..> TransaccionPago : crea
+CobroPasaje ..> Tarjeta : descuenta
+@enduml

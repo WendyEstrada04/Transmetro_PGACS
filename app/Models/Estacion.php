@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Estación del Transmetro (puntos 2, 3, 6, 11 y 14).
@@ -63,14 +64,15 @@ class Estacion extends Model
         return $this->hasMany(Parqueo::class, 'id_estacion', 'id_estacion');
     }
 
+    /** Operador que trabaja en la PC de la estación (punto 16). */
+    public function operador(): HasOne
+    {
+        return $this->hasOne(Operador::class, 'id_estacion_asignada', 'id_estacion');
+    }
+
     public function alertas(): HasMany
     {
         return $this->hasMany(AlertaSistema::class, 'id_estacion', 'id_estacion');
-    }
-
-    public function operadores(): HasMany
-    {
-        return $this->hasMany(Operador::class, 'id_estacion_asignada', 'id_estacion');
     }
 
     /** Porcentaje de ocupación de la estación respecto a su aforo máximo. */

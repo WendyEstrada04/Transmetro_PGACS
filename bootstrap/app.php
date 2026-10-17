@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'rol' => VerificarRol::class,
         ]);
+        // En Render la conexión HTTPS termina en su balanceador: se confía en él para saber que la página es segura.
+        $middleware->trustProxies(at: '*');
         $middleware->redirectUsersTo('/panel');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

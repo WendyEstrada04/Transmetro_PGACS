@@ -42,8 +42,8 @@ pest()->extend(TestCase::class)->in('Feature');
 function tarjetaDePrueba(array $datos = []): Tarjeta
 {
     return Tarjeta::create(array_merge([
-        'numero_tarjeta' => 'TCPRUEBA'.random_int(100000, 999999),
-        'tipo_tarjeta' => 'ciudadana',
+        'numero_tarjeta' => '99'.random_int(10000000, 99999999),
+        'tipo_tarjeta' => 'vecino',
         'costo_emision' => Tarjeta::COSTO_EMISION,
         'viajes_gratis_restantes' => 0,
         'saldo' => 0,

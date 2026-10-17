@@ -1,0 +1,49 @@
+@startuml
+!include comun.iuml
+left to right direction
+title Diagrama de Casos de Uso (2/2) — Operación de estación, pagos y control automático
+actor "Operador de\nestación" as Op
+actor "Pasajero" as Pas
+actor "Sistema\n(automático)" as Sis
+actor "Piloto" as Pil
+actor "Personal de\nseguridad" as Seg
+rectangle "Sistema de Control Transmetro" {
+  package "Panel de la estación (PC de trabajo)" {
+    usecase "Iniciar sesión\n(rol operador)" as O0
+    usecase "Consultar estado de la estación\n(aforo, accesos, guardias, parqueos)" as O1
+    usecase "Actualizar aforo actual" as O2
+    usecase "Atender y cerrar alertas" as O3
+    usecase "Consultar buses de sus líneas\ny espera extra (+5 min si < 25 %)" as O4
+    usecase "Consultar horario y\nmapa de rutas" as O5
+  }
+  package "Accesos y pagos (molinete)" {
+    usecase "Registrar pase en molinete" as M1
+    usecase "Cobrar con Tarjeta Ciudadana\n(viajes gratis → saldo)" as M2
+    usecase "Cobrar con tarjeta bancaria\nsin contacto" as M3
+  }
+  package "Control automático" {
+    usecase "Generar alerta de refuerzo\n(aforo ≥ 150 %)" as A1
+    usecase "Registrar bitácora" as A2
+  }
+  package "Fase 2 (fuera del alcance actual)" {
+    usecase "Consultar recorrido asignado\n(consola del piloto)" as F1
+    usecase "Reportar incidencia en acceso" as F2
+  }
+}
+Op --> O0
+Op --> O1
+Op --> O2
+Op --> O3
+Op --> O4
+Op --> O5
+Op --> M1
+Pas --> M1
+M1 ..> M2 : <<extend>>
+M1 ..> M3 : <<extend>>
+O2 ..> A1 : <<include>>
+O2 ..> A2 : <<include>>
+O3 ..> A2 : <<include>>
+A1 <-- Sis
+Pil --> F1
+Seg --> F2
+@enduml

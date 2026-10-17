@@ -13,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
 
 /**
  * Usuario que inicia sesión en la aplicación web.
- * rol: 'administrador' (municipalidad) u 'operador' (PC de una estación).
+ * rol: 'administrador' (municipalidad) u 'operador' (acompaña a un bus y a su chofer).
  */
 #[Fillable(['name', 'email', 'password', 'rol', 'id_empleado'])]
 #[Hidden(['password', 'remember_token'])]

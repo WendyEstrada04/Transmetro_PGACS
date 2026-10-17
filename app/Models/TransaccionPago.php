@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Pago registrado en un molinete (punto 18).
+ * Pago del pasaje (punto 18): uno por cada persona que sube al bus, en el molinete de entrada del bus.
+ * Guarda en qué bus, en qué estación y en qué parada del viaje subió.
  */
 class TransaccionPago extends Model
 {
@@ -27,6 +28,9 @@ class TransaccionPago extends Model
         'fecha_hora',
         'id_linea',
         'viaje_gratis',
+        'id_bus',
+        'id_estacion',
+        'id_visita',
     ];
 
     public const METODOS = [
@@ -51,6 +55,16 @@ class TransaccionPago extends Model
     public function tarjeta(): BelongsTo
     {
         return $this->belongsTo(Tarjeta::class, 'id_tarjeta', 'id_tarjeta');
+    }
+
+    public function bus(): BelongsTo
+    {
+        return $this->belongsTo(Bus::class, 'id_bus', 'id_bus');
+    }
+
+    public function estacion(): BelongsTo
+    {
+        return $this->belongsTo(Estacion::class, 'id_estacion', 'id_estacion');
     }
 
     public function linea(): BelongsTo

@@ -39,6 +39,31 @@ class Empleado extends Model
         ];
     }
 
+    /**
+     * Teléfono y correo se guardan juntos y cifrados en contacto_encriptado con el formato
+     * “Tel. 5555-5555 · nombre@correo.gt”; estos métodos los arman y los separan.
+     */
+    public static function armarContacto(string $telefono, ?string $correo): string
+    {
+        return implode(' · ', array_filter(['Tel. '.trim($telefono), $correo ? trim($correo) : null]));
+    }
+
+    public function telefono(): ?string
+    {
+        $contacto = (string) $this->contacto_encriptado;
+        if (preg_match('/Tel\.?\s*([0-9+()\-\s]{7,})/i', $contacto, $m)) {
+            return trim($m[1]);
+        }
+
+        // Contacto antiguo sin el formato: si no es un correo, se toma completo como teléfono.
+        return $this->correo() ? null : (trim($contacto) ?: null);
+    }
+
+    public function correo(): ?string
+    {
+        return preg_match('/[\w.+-]+@[\w-]+(\.[\w-]+)+/', (string) $this->contacto_encriptado, $m) ? $m[0] : null;
+    }
+
     public function piloto(): HasOne
     {
         return $this->hasOne(Piloto::class, 'id_empleado', 'id_empleado');

@@ -9,7 +9,7 @@ test('las pantallas internas piden iniciar sesión', function (string $ruta) {
 })->with(['/panel', '/mapa', '/admin', '/admin/lineas', '/operador']);
 
 test('el administrador inicia sesión y llega a su panel', function () {
-    $this->post('/login', ['email' => 'admin@transmetro.test', 'password' => 'Transmetro2026!'])
+    $this->post('/login', ['email' => 'admin@transmetro.test', 'password' => 'admin123'])
         ->assertRedirect(route('panel'));
 
     $this->assertAuthenticatedAs($this->administrador());
@@ -17,10 +17,10 @@ test('el administrador inicia sesión y llega a su panel', function () {
 });
 
 test('el operador inicia sesión y llega a su estación', function () {
-    $this->post('/login', ['email' => 'operador@transmetro.test', 'password' => 'Transmetro2026!']);
+    $this->post('/login', ['email' => 'operador@transmetro.test', 'password' => 'operador123']);
 
     $this->assertAuthenticatedAs($this->operador());
-    $this->get('/panel')->assertRedirect(route('operador.estacion'));
+    $this->get('/panel')->assertRedirect(route('operador.inicio'));
 });
 
 test('una contraseña incorrecta no deja entrar y muestra un mensaje genérico', function () {
@@ -38,7 +38,7 @@ test('después de 5 intentos fallidos se bloquea el inicio de sesión', function
     }
 
     // Aunque ahora la contraseña sea la correcta, sigue bloqueado.
-    $this->post('/login', ['email' => 'admin@transmetro.test', 'password' => 'Transmetro2026!'])
+    $this->post('/login', ['email' => 'admin@transmetro.test', 'password' => 'admin123'])
         ->assertSessionHasErrors('email');
 
     $this->assertGuest();

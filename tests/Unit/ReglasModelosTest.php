@@ -9,16 +9,21 @@ use App\Models\Linea;
  * Reglas de negocio calculadas en los modelos (no necesitan base de datos).
  */
 
-test('punto 15: un bus con menos del 25 % de ocupación espera 5 minutos más', function (float $ocupacion, int $espera) {
-    $bus = new Bus(['ocupacion_actual_pct' => $ocupacion]);
+test('punto 15: un bus con menos del 25 % de ocupación espera 5 minutos más', function (int $aBordo, int $espera) {
+    $bus = new Bus(['capacidad_maxima' => 80, 'pasajeros_a_bordo' => $aBordo]);
 
     expect($bus->minutosEsperaExtra())->toBe($espera);
 })->with([
     'vacío' => [0, 5],
-    'casi 25 %' => [24.99, 5],
-    'justo 25 %' => [25, 0],
-    'lleno' => [100, 0],
+    'casi 25 %' => [19, 5],
+    'justo 25 %' => [20, 0],
+    'lleno' => [80, 0],
 ]);
+
+test('el bus está lleno cuando los pasajeros a bordo llegan a su capacidad', function () {
+    expect((new Bus(['capacidad_maxima' => 80, 'pasajeros_a_bordo' => 79]))->lleno())->toBeFalse()
+        ->and((new Bus(['capacidad_maxima' => 80, 'pasajeros_a_bordo' => 80]))->lleno())->toBeTrue();
+});
 
 test('punto 14: la estación requiere refuerzo desde el 150 % de su aforo', function (int $actual, bool $refuerzo) {
     $estacion = new Estacion(['aforo_maximo' => 200, 'aforo_actual' => $actual]);

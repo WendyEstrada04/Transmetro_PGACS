@@ -3,14 +3,15 @@
 @section('titulo', 'Municipios')
 
 @section('contenido')
-    <x-titulo titulo="Municipios" subtitulo="Municipalidades a las que pertenecen las líneas y estaciones.">
-        <a href="{{ route('admin.municipios.create') }}" class="btn btn-primario">+ Nuevo municipio</a>
+    <x-titulo titulo="Municipios" subtitulo="Municipios donde opera el Transmetro y sus líneas y estaciones.">
+        <a href="{{ route('admin.lineas.index') }}" class="btn btn-secundario">Líneas</a>
+        <a href="{{ route('admin.estaciones.index') }}" class="btn btn-secundario">Estaciones</a>
     </x-titulo>
 
     <div class="overflow-x-auto rounded-lg bg-white shadow-sm">
         <table class="tabla">
             <thead>
-                <tr><th>Código</th><th>Nombre</th><th class="text-right">Líneas</th><th class="text-right">Estaciones</th><th>Estado</th><th></th></tr>
+                <tr><th>Código</th><th>Nombre</th><th class="text-right">Líneas</th><th class="text-right">Estaciones</th><th>Estado</th></tr>
             </thead>
             <tbody>
                 @forelse ($municipios as $municipio)
@@ -24,15 +25,9 @@
                                 {{ $municipio->activo ? 'Activo' : 'Inactivo' }}
                             </span>
                         </td>
-                        <td class="text-right whitespace-nowrap">
-                            <a href="{{ route('admin.municipios.edit', $municipio) }}" class="btn btn-secundario btn-chico">Editar</a>
-                            @if ($municipio->lineas_count + $municipio->estaciones_count === 0)
-                                <x-eliminar :accion="route('admin.municipios.destroy', $municipio)" />
-                            @endif
-                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="text-center text-slate-400">No hay municipios registrados.</td></tr>
+                    <tr><td colspan="5" class="text-center text-slate-400">No hay municipios registrados.</td></tr>
                 @endforelse
             </tbody>
         </table>

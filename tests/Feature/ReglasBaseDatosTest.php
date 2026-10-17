@@ -68,12 +68,12 @@ test('punto 5: una línea no puede tener más del doble de buses que de estacion
 
     // Llena la línea hasta el máximo permitido.
     foreach (range(1, $maximo - $actuales) as $n) {
-        Bus::create(['placa' => sprintf('PR-%03d', $n), 'capacidad_maxima' => 80, 'id_linea_asignada' => $linea->id_linea,
+        Bus::create(['placa' => sprintf('C%03dZZZ', $n), 'capacidad_maxima' => 80, 'id_linea_asignada' => $linea->id_linea,
             'ocupacion_actual_pct' => 0, 'estado_logico' => 'en_espera']);
     }
 
     // El siguiente bus ya no cabe.
-    expect(errorDeBD(fn () => Bus::create(['placa' => 'PR-999', 'capacidad_maxima' => 80,
+    expect(errorDeBD(fn () => Bus::create(['placa' => 'C999ZZX', 'capacidad_maxima' => 80,
         'id_linea_asignada' => $linea->id_linea, 'ocupacion_actual_pct' => 0, 'estado_logico' => 'en_espera'])))
         ->toContain('maximo permitido');
 
@@ -147,7 +147,10 @@ test('punto 18: las recargas solo pueden ser de Q5 a Q200', function (float $mon
         ->toContain('chk_recargas_monto');
 })->with([4.99, 200.01]);
 
-test('punto 18: una tarjeta de adulto mayor debe tener titular y DPI', function () {
-    expect(errorDeBD(fn () => tarjetaDePrueba(['tipo_tarjeta' => 'adulto_mayor'])))
+test('punto 18: una tarjeta de adulto mayor debe tener titular y DPI (y siempre es personalizada)', function () {
+    expect(errorDeBD(fn () => tarjetaDePrueba(['tipo_tarjeta' => 'adulto_mayor', 'afiliada' => true])))
         ->toContain('chk_tarjetas_titular');
+
+    expect(errorDeBD(fn () => tarjetaDePrueba(['tipo_tarjeta' => 'adulto_mayor'])))
+        ->toContain('chk_tarjetas_afiliada');
 });

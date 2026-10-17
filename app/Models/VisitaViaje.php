@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Parada visitada durante un viaje (puntos 1 y 15).
+ * subieron / bajaron los cuentan los molinetes de entrada y salida del bus (triggers de la base).
  */
 class VisitaViaje extends Model
 {
@@ -26,6 +27,8 @@ class VisitaViaje extends Model
         'hora_llegada',
         'hora_salida',
         'ocupacion_al_llegar_pct',
+        'subieron',
+        'bajaron',
     ];
 
     protected function casts(): array
@@ -35,6 +38,8 @@ class VisitaViaje extends Model
             'hora_llegada' => 'datetime',
             'hora_salida' => 'datetime',
             'ocupacion_al_llegar_pct' => 'decimal:2',
+            'subieron' => 'integer',
+            'bajaron' => 'integer',
         ];
     }
 

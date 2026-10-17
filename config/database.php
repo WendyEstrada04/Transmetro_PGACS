@@ -98,6 +98,9 @@ return [
             'search_path' => env('DB_SCHEMA', 'public'),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             'timezone' => env('DB_TIMEZONE', 'America/Guatemala'),
+            // Conexión persistente: reutiliza la conexión a Supabase entre solicitudes en lugar de
+            // abrir una nueva (con su negociación SSL) en cada clic. Se activa con DB_PERSISTENT=true.
+            'options' => env('DB_PERSISTENT', false) ? [PDO::ATTR_PERSISTENT => true] : [],
         ],
 
         'sqlsrv' => [

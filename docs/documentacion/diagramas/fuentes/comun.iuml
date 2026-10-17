@@ -1,0 +1,25 @@
+skinparam defaultFontName "DejaVu Sans"
+skinparam shadowing false
+skinparam ArrowColor #2F5597
+skinparam ActorBorderColor #7A1F3D
+skinparam ActorBackgroundColor #FFFBD6
+skinparam UsecaseBorderColor #2F5597
+skinparam UsecaseBackgroundColor #EEF4FB
+skinparam PackageBorderColor #333333
+skinparam RectangleBorderColor #333333
+skinparam NoteBackgroundColor #FFF8B0
+skinparam NoteBorderColor #C8A800
+skinparam ClassBorderColor #2F5597
+skinparam ClassBackgroundColor #EEF4FB
+skinparam ClassHeaderBackgroundColor #D6E4F5
+skinparam ObjectBorderColor #2F5597
+skinparam ObjectBackgroundColor #EEF4FB
+skinparam ComponentBorderColor #2F5597
+skinparam ComponentBackgroundColor #EEF4FB
+skinparam NodeBackgroundColor #FFF6DD
+skinparam NodeBorderColor #B08A2E
+skinparam DatabaseBackgroundColor #FFF6DD
+skinparam SequenceParticipantBorderColor #2F5597
+skinparam SequenceParticipantBackgroundColor #EEF4FB
+skinparam SequenceLifeLineBorderColor #2F5597
+skinparam TitleFontSize 16

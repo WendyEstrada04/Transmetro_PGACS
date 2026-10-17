@@ -137,4 +137,10 @@ class Linea extends Model
 
         return $this->estado === 'activa' && $horario && $hora >= $horario->inicio() && $hora <= $horario->fin();
     }
+
+    /** ¿Los buses de la línea deben estar circulando ahora? Dentro de su horario (o siempre, si el prototipo no respeta horarios). */
+    public function operaAhora(): bool
+    {
+        return config('transmetro.respetar_horarios', true) ? $this->enServicio() : $this->estado === 'activa';
+    }
 }

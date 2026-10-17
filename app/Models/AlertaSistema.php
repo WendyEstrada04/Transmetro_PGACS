@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Alerta del sistema, p. ej. refuerzo de bus por saturación (punto 14).
+ * Alerta del sistema: refuerzo por estación saturada (punto 14) o bus lleno con gente sin poder subir.
  */
 class AlertaSistema extends Model
 {
@@ -22,6 +22,7 @@ class AlertaSistema extends Model
 
     protected $fillable = [
         'id_estacion',
+        'id_bus',
         'tipo_alerta',
         'descripcion',
         'estado',
@@ -40,6 +41,27 @@ class AlertaSistema extends Model
     public function estacion(): BelongsTo
     {
         return $this->belongsTo(Estacion::class, 'id_estacion', 'id_estacion');
+    }
+
+    /** Alertas que se resuelven enviando otro bus. */
+    public const DE_REFUERZO = ['refuerzo_bus', 'bus_lleno'];
+
+    public const TIPOS = [
+        'refuerzo_bus' => 'Estación saturada',
+        'bus_lleno' => 'Bus lleno',
+        'bahia_ocupada' => 'Bahía ocupada',
+        'espera_minima' => 'Espera mínima',
+        'otro' => 'Otro',
+    ];
+
+    public function bus(): BelongsTo
+    {
+        return $this->belongsTo(Bus::class, 'id_bus', 'id_bus');
+    }
+
+    public function pideBus(): bool
+    {
+        return in_array($this->tipo_alerta, self::DE_REFUERZO, true);
     }
 
     public function scopeAbiertas(Builder $query): Builder

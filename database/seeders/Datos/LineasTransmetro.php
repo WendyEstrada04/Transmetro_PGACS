@@ -12,7 +12,9 @@
  *  - nombre, color oficial (página "Información por línea"), tarifa y tipo de servicio;
  *  - horario oficial de cada línea (tabla "Horarios de servicio" de la Municipalidad): indica el inicio
  *    y el final del servicio en las estaciones extremo; se puede editar en la app;
- *  - cantidad de buses (entre n y 2n, n = número de estaciones) y su capacidad (datos de prueba);
+ *  - cantidad de buses (entre n y 2n, n = número de estaciones) y el tipo de unidad que usa la línea
+ *    (convencional, articulado, biarticulado o eléctrico; la capacidad sale de Bus::TIPOS_UNIDAD).
+ *    En la L12 (eje troncal) uno de cada tres buses es biarticulado y los demás articulados;
  *  - la estación terminal donde empieza el recorrido ('inicio');
  *  - 'renombrar': nombres del mapa que se aclaran; 'orden': orden manual cuando el mapa tiene
  *    ramales dibujados como figuras separadas y el orden automático no es confiable.
@@ -29,7 +31,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:00', '20:00'], ['05:00', '19:00'], ['06:30', '19:00']),
         'buses' => 12,
-        'capacidad' => 90,
+        'unidad' => 'convencional',
     ],
     'L2' => [
         'nombre' => 'Hipódromo del Norte – San Sebastián',
@@ -40,7 +42,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:30', '20:00'], ['05:30', '19:00'], ['06:30', '19:00']),
         'buses' => 8,
-        'capacidad' => 90,
+        'unidad' => 'convencional',
     ],
     'L6' => [
         'nombre' => 'Proyectos – FEGUA',
@@ -51,7 +53,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:00', '21:00'], ['05:00', '20:00'], ['06:00', '20:00']),
         'buses' => 24,
-        'capacidad' => 120,
+        'unidad' => 'articulado',
     ],
     'L7' => [
         'nombre' => 'USAC Periférico – La Merced',
@@ -62,7 +64,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:00', '21:00'], ['05:00', '20:00'], ['06:00', '20:00']),
         'buses' => 38,
-        'capacidad' => 120,
+        'unidad' => 'articulado',
     ],
     'L12' => [
         'nombre' => 'Centra Sur – Plaza Barrios',
@@ -74,7 +76,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['04:30', '21:00'], ['04:30', '21:00'], ['04:30', '21:00']),
         'buses' => 24,
-        'capacidad' => 160,
+        'unidad' => 'biarticulado',
     ],
     'L13' => [
         'nombre' => 'Plaza Argentina – Tipografía',
@@ -85,7 +87,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:00', '21:00'], ['05:00', '20:00'], ['05:00', '20:00']),
         'buses' => 28,
-        'capacidad' => 160,
+        'unidad' => 'articulado',
     ],
     'L18' => [
         'nombre' => 'Atlántida – FEGUA',
@@ -102,7 +104,7 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:00', '21:00'], ['05:00', '20:00'], ['06:00', '20:00']),
         'buses' => 18,
-        'capacidad' => 120,
+        'unidad' => 'articulado',
     ],
     'R5' => [
         'nombre' => 'TuBus Ruta 5: Parque Colón – Puente de la Penitenciaría',
@@ -142,6 +144,6 @@ return [
         'tarifa' => 1.00,
         'horario' => $horario(['05:30', '19:00'], ['05:30', '19:00'], ['06:00', '18:00']),
         'buses' => 18,
-        'capacidad' => 60,
+        'unidad' => 'electrico',
     ],
 ];

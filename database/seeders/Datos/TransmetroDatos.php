@@ -2,6 +2,9 @@
 
 namespace Database\Seeders\Datos;
 
+use App\Models\Bus;
+use App\Services\SimuladorOperacion;
+
 /**
  * Datos de prueba del Sistema de Control Transmetro.
  *
@@ -91,7 +94,11 @@ class TransmetroDatos
         return is_file($archivo) ? (json_decode((string) file_get_contents($archivo), true) ?: []) : [];
     }
 
-    public static function generar(callable $cifrar, callable $hash, ?int $semilla = 2026, ?array $trazos = null): array
+    /**
+     * $escala: 1 = día normal de operación. Un valor menor simula un inicio de uso (poca gente):
+     * menos días de historial, menos personas en las estaciones y en los buses. 0.05 = primer día.
+     */
+    public static function generar(callable $cifrar, callable $hash, ?int $semilla = 2026, ?array $trazos = null, float $escala = 1.0, bool $respetarHorarios = true, ?int $momento = null): array
     {
         $trazos ??= self::trazos();
         $ubicacionGuardada = [];
@@ -99,7 +106,7 @@ class TransmetroDatos
             $ubicacionGuardada += $t['estaciones'] ?? [];
         }
         mt_srand($semilla);
-        $ahora = time();
+        $ahora = $momento ?? time();
         $fecha = fn (int $ts) => date('Y-m-d H:i:s', $ts);
         $uuid = [self::class, 'uuid'];
         $azar = fn (array $lista) => $lista[mt_rand(0, count($lista) - 1)];
@@ -136,7 +143,7 @@ class TransmetroDatos
         $lin = [];
         foreach ($definiciones as $codigo => $def) {
             $idLinea = $uuid();
-            $lin[$codigo] = ['id' => $idLinea, 'paradas' => [], 'buses' => $def['buses'], 'capacidad' => $def['capacidad'],
+            $lin[$codigo] = ['id' => $idLinea, 'paradas' => [], 'buses' => $def['buses'], 'unidad' => $def['unidad'],
                 'terminal' => $def['estaciones'][0][0]];
             $lineas[] = ['id_linea' => $idLinea, 'id_municipio' => $mun['Guatemala'], 'codigo_linea' => $codigo,
                 'nombre' => $def['nombre'], 'tipo_servicio' => $def['tipo_servicio'], 'tarifa' => $def['tarifa'],
@@ -146,6 +153,14 @@ class TransmetroDatos
                 $horarios[] = ['id_horario' => $uuid(), 'id_linea' => $idLinea, 'tipo_dia' => $tipoDia,
                     'hora_inicio' => $inicio, 'hora_fin' => $fin];
             }
+            // Horario de hoy: los buses solo circulan entre la apertura y el cierre de su línea.
+            $tipoHoy = match ((int) date('w', $ahora)) {
+                0 => 'domingo_feriado', 6 => 'sabado', default => 'lunes_viernes'
+            };
+            [$inicioHoy, $finHoy] = $def['horario'][$tipoHoy] ?? ['00:00', '23:59'];
+            $lin[$codigo]['abre'] = strtotime("today {$inicioHoy}", $ahora);
+            $lin[$codigo]['cierra'] = strtotime("today {$finHoy}", $ahora);
+            $lin[$codigo]['opera'] = ! $respetarHorarios || ($ahora >= $lin[$codigo]['abre'] && $ahora <= $lin[$codigo]['cierra']);
 
             foreach ($def['estaciones'] as $i => [$nombre, $direccion, $lat, $lon, $km]) {
                 [$lat, $lon] = $ubicacionGuardada[$nombre] ?? [$lat, $lon];
@@ -159,7 +174,7 @@ class TransmetroDatos
                     $municipio = str_contains((string) $direccion, 'Villa Nueva') ? 'Villa Nueva'
                         : (str_contains((string) $direccion, 'Mixco') ? 'Mixco' : 'Guatemala');
                     $estaciones[] = ['id_estacion' => $est[$nombre], 'id_municipio' => $mun[$municipio], 'nombre' => $nombre,
-                        'direccion' => $direccion, 'aforo_maximo' => $aforo, 'aforo_actual' => intdiv($aforo * mt_rand(15, 90), 100),
+                        'direccion' => $direccion, 'aforo_maximo' => $aforo, 'aforo_actual' => (int) (intdiv($aforo * mt_rand(15, 90), 100) * $escala),
                         'latitud' => $lat, 'longitud' => $lon];
                 }
                 $lineaDeEstacion[$est[$nombre]] ??= $codigo;
@@ -167,6 +182,23 @@ class TransmetroDatos
                 $lin[$codigo]['paradas'][] = [$nombre, $i > 0 ? $km : 0];
             }
         }
+
+        // Las estaciones cuyas líneas están fuera de su horario están vacías (los viajes de hoy se calculan con la gente que había de día).
+        $aforoDeDia = array_column($estaciones, 'aforo_actual', 'id_estacion');
+        $conServicio = [];
+        foreach ($lineaEstacion as $le) {
+            foreach ($lin as $l) {
+                if ($l['id'] === $le['id_linea'] && $l['opera']) {
+                    $conServicio[$le['id_estacion']] = true;
+                }
+            }
+        }
+        foreach ($estaciones as &$estacionFila) {
+            if (! isset($conServicio[$estacionFila['id_estacion']])) {
+                $estacionFila['aforo_actual'] = 0;
+            }
+        }
+        unset($estacionFila);
 
         // ---------------- BUSES (entre n y 2n por línea) ----------------
         $buses = [];
@@ -176,16 +208,20 @@ class TransmetroDatos
             for ($i = 0; $i < $l['buses']; $i++) {
                 $n++;
                 $id = $uuid();
-                $buses[] = ['id_bus' => $id, 'placa' => sprintf('TM-%03d', $n), 'capacidad_maxima' => $l['capacidad'],
-                    'id_linea_asignada' => $l['id'], 'ocupacion_actual_pct' => mt_rand(5, 95),
-                    'estado_logico' => mt_rand(0, 5) ? 'en_ruta' : 'en_espera'];
+                // L12: uno de cada tres es biarticulado y los demás articulados; el resto de líneas, su tipo de unidad.
+                $tipoUnidad = $l['unidad'] === 'biarticulado' && $i % 3 !== 0 ? 'articulado' : $l['unidad'];
+                $buses[] = ['id_bus' => $id, 'placa' => self::placa($n), 'tipo_unidad' => $tipoUnidad,
+                    'capacidad_maxima' => Bus::TIPOS_UNIDAD[$tipoUnidad][1],
+                    'id_linea_asignada' => $l['id'], 'pasajeros_a_bordo' => 0,   // lo calculan los viajes de hoy (más abajo)
+                    'estado_logico' => (mt_rand(0, 5) !== 0 && $l['opera'] && ($escala >= 1 || $i < max(1, (int) ceil($l['buses'] * $escala * 2)))) ? 'en_ruta' : 'en_espera'];
                 $busesAsignados[] = [$id, $codigo];
             }
         }
         foreach (['en_mantenimiento', 'en_mantenimiento', 'fuera_de_servicio'] as $estado) {
             $n++;
-            $buses[] = ['id_bus' => $uuid(), 'placa' => sprintf('TM-%03d', $n), 'capacidad_maxima' => 160,
-                'id_linea_asignada' => null, 'ocupacion_actual_pct' => 0, 'estado_logico' => $estado];
+            $buses[] = ['id_bus' => $uuid(), 'placa' => self::placa($n), 'tipo_unidad' => 'articulado',
+                'capacidad_maxima' => Bus::TIPOS_UNIDAD['articulado'][1],
+                'id_linea_asignada' => null, 'pasajeros_a_bordo' => 0, 'estado_logico' => $estado];
         }
 
         // ---------------- PARQUEOS en las terminales — cada bus con un parqueo ----------------
@@ -214,8 +250,17 @@ class TransmetroDatos
             foreach ($ubicaciones as $k => $ubicacion) {
                 $idAcceso = $uuid();
                 $accesos[] = ['id_acceso' => $idAcceso, 'id_estacion' => $idEstacion, 'ubicacion_fisica' => "Acceso $ubicacion"];
-                $molinetes[] = ['id_molinete' => $uuid(), 'id_acceso' => $idAcceso, 'id_estacion' => $idEstacion,
+                $molinetes[] = ['id_molinete' => $uuid(), 'id_acceso' => $idAcceso, 'id_bus' => null, 'tipo' => 'estacion',
                     'ip_address' => sprintf('10.10.%d.%d', $e, $k + 11), 'estado_operativo' => 'activo'];
+            }
+        }
+        // Cada bus: molinete de entrada (cobra al subir) y de salida (cuenta al bajar).
+        $molineteBus = [];
+        foreach ($buses as $b => $bus) {
+            foreach (['entrada_bus' => 11, 'salida_bus' => 12] as $tipo => $ip) {
+                $molineteBus[$bus['id_bus']][$tipo] = $uuid();
+                $molinetes[] = ['id_molinete' => $molineteBus[$bus['id_bus']][$tipo], 'id_acceso' => null, 'id_bus' => $bus['id_bus'],
+                    'tipo' => $tipo, 'ip_address' => sprintf('10.20.%d.%d', $b + 1, $ip), 'estado_operativo' => 'activo'];
             }
         }
 
@@ -258,30 +303,16 @@ class TransmetroDatos
                 'constancia_antecedentes_penales' => 'Vigente '.date('Y'), 'numero_placa_asignada' => sprintf('SEG-%03d', $i + 1),
                 'id_acceso_asignado' => $acceso['id_acceso']];
         }
-        $operadorSanSebastian = null;
-        foreach ($est as $nombre => $idEstacion) {
-            $id = $nuevoEmpleado('operador');
-            $operadores[] = ['id_empleado' => $id, 'nivel_estudios' => $azar(self::NIVELES),
-                'anios_experiencia_monitoreo' => mt_rand(1, 10), 'id_estacion_asignada' => $idEstacion];
-            if ($nombre === 'San Sebastián') {
-                $operadorSanSebastian = $id;
-            }
-        }
-
-        // ---------------- USUARIOS (credenciales de prueba) ----------------
-        $clave = $hash('Transmetro2026!');
-        $users = [
-            ['name' => 'Administrador Municipal', 'email' => 'admin@transmetro.test', 'email_verified_at' => $fecha($ahora),
-                'password' => $clave, 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'administrador', 'id_empleado' => null],
-            ['name' => 'Operador San Sebastián', 'email' => 'operador@transmetro.test', 'email_verified_at' => $fecha($ahora),
-                'password' => $clave, 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'operador', 'id_empleado' => $operadorSanSebastian],
-        ];
-
         // ---------------- TARJETA CIUDADANA: tarjetas y recargas ----------------
         $tarjetas = $recargas = [];
         for ($i = 1; $i <= 40; $i++) {
             $id = $uuid();
-            $tipo = $i <= 32 ? 'ciudadana' : ($i <= 37 ? 'adulto_mayor' : 'discapacidad');
+            $tipo = $i <= 32 ? 'vecino' : ($i <= 37 ? 'adulto_mayor' : 'discapacidad');
+            // Vecino: la mitad está afiliada (perfil POCAE) y la otra mitad es al portador.
+            // Adulto mayor y discapacidad siempre llevan titular.
+            $afiliada = $tipo !== 'vecino' || $i % 2 === 1;
+            [$edadMin, $edadMax] = ['vecino' => [18, 59], 'adulto_mayor' => [60, 85], 'discapacidad' => [18, 70]][$tipo];
+            $nacimiento = sprintf('%d-%02d-%02d', (int) date('Y', $ahora) - mt_rand($edadMin + 1, $edadMax), mt_rand(1, 12), mt_rand(1, 28));
             $emision = $ahora - mt_rand(30, 400) * 86400;
             $saldo = 0;
             for ($r = 0; $r < mt_rand(1, 3); $r++) {
@@ -290,64 +321,130 @@ class TransmetroDatos
                 $recargas[] = ['id_recarga' => $uuid(), 'id_tarjeta' => $id, 'monto' => $monto,
                     'metodo_pago' => $azar(['efectivo', 'efectivo', 'debito', 'credito', 'en_linea']), 'fecha_hora' => $fecha($emision + ($r + 1) * 86400)];
             }
-            $tarjetas[] = ['id_tarjeta' => $id, 'numero_tarjeta' => sprintf('TC%010d', 4000000000 + $i * 7919),
-                'tipo_tarjeta' => $tipo,
-                'nombre_titular' => $tipo === 'ciudadana' ? null : $azar(self::NOMBRES).' '.$azar(self::APELLIDOS),
-                'dpi_titular' => $tipo === 'ciudadana' ? null : sprintf('1%08d0101', $i),
-                'costo_emision' => 20.00,
-                // Los 5 viajes gratis de la emisión ya se usaron en las tarjetas con más de 60 días.
-                'viajes_gratis_restantes' => $emision > $ahora - 60 * 86400 ? 5 : 0,
-                'saldo' => $saldo, 'estado' => $i % 15 === 0 ? 'bloqueada' : 'activa', 'fecha_emision' => $fecha($emision)];
+            // Estado: dos bloqueadas (robo o extravío) y una dada de baja; las demás activas.
+            [$estado, $motivo] = match (true) {
+                $i % 15 === 0 => ['bloqueada', 'Robo o extravío reportado'],
+                $i === 26 => ['baja', 'Tarjeta dañada sin reposición'],
+                default => ['activa', null],
+            };
+            // Número impreso atrás de la tarjeta: 00 0040 0001, 00 0040 0002, …
+            $tarjetas[] = ['id_tarjeta' => $id, 'numero_tarjeta' => sprintf('%010d', 400000 + $i),
+                'tipo_tarjeta' => $tipo, 'afiliada' => $afiliada,
+                'nombre_titular' => $afiliada ? $azar(self::NOMBRES).' '.$azar(self::APELLIDOS) : null,
+                'dpi_titular' => $afiliada ? sprintf('1%08d0101', $i) : null,
+                'fecha_nacimiento_titular' => $afiliada ? $nacimiento : null,
+                'id_tarjeta_anterior' => null,
+                // Vecino Q20; adulto mayor (la primera) y discapacidad, gratis.
+                'costo_emision' => $tipo === 'vecino' ? 20.00 : 0,
+                // Los 5 viajes de bienvenida de la tarjeta Vecino ya se usaron en las que tienen más de 60 días.
+                'viajes_gratis_restantes' => $tipo === 'vecino' && $emision > $ahora - 60 * 86400 ? 5 : 0,
+                'saldo' => $saldo, 'estado' => $estado, 'fecha_emision' => $fecha($emision),
+                'motivo_estado' => $motivo, 'fecha_estado' => $estado === 'activa' ? null : $fecha($ahora - mt_rand(1, 20) * 86400)];
         }
 
-        // ---------------- PAGOS EN MOLINETES (sin efectivo) ----------------
+        // ---------------- PAGOS: uno por cada persona que sube al bus (sin efectivo) ----------------
+        // Tarjeta Ciudadana (viaje gratis o saldo) o tarjeta bancaria sin contacto.
         $tarifas = array_column($lineas, 'tarifa', 'id_linea');
-        $transacciones = [];
-        for ($i = 0; $i < 200; $i++) {
-            $molinete = $azar($molinetes);
-            $idLinea = $lin[$lineaDeEstacion[$molinete['id_estacion']]]['id'];
+        $transacciones = $bajadas = [];
+        $saldoInicial = array_column($tarjetas, 'saldo');
+        $cortesias = [];   // adulto mayor: viajes de cortesía usados por día (4 diarios)
+        $pago = function (string $idBus, string $idLinea, string $idEstacion, ?string $idVisita, int $ts) use (&$tarjetas, &$transacciones, &$cortesias, $molineteBus, $tarifas, $uuid, $fecha, $saldoInicial) {
             $tarifa = $tarifas[$idLinea];
-            $fila = ['id_transaccion' => $uuid(), 'id_molinete' => $molinete['id_molinete'], 'id_linea' => $idLinea,
+            $fila = ['id_transaccion' => $uuid(), 'id_molinete' => $molineteBus[$idBus]['entrada_bus'], 'id_linea' => $idLinea,
                 'id_tarjeta' => null, 'monto' => $tarifa, 'viaje_gratis' => false, 'metodo_pago' => 'tarjeta_bancaria',
-                'fecha_hora' => $fecha($ahora - mt_rand(0, 7 * 86400))];
-
+                'fecha_hora' => $fecha($ts), 'id_bus' => $idBus, 'id_estacion' => $idEstacion, 'id_visita' => $idVisita];
+            // Cada tarjeta conserva al menos la mitad de lo que recargó (así quedan tarjetas con saldo para probar).
             $t = mt_rand(0, count($tarjetas) - 1);
-            if (mt_rand(1, 10) <= 8 && $tarjetas[$t]['estado'] === 'activa') {
-                if ($tarjetas[$t]['viajes_gratis_restantes'] > 0) {
+            if (mt_rand(1, 10) <= 7 && $tarjetas[$t]['estado'] === 'activa') {
+                $dia = date('Y-m-d', $ts);
+                if ($tarjetas[$t]['tipo_tarjeta'] === 'adulto_mayor' && ($cortesias[$t][$dia] ?? 0) < 4) {
+                    $cortesias[$t][$dia] = ($cortesias[$t][$dia] ?? 0) + 1;
+                    $fila = ['monto' => 0, 'viaje_gratis' => true, 'metodo_pago' => 'tarjeta_ciudadana', 'id_tarjeta' => $tarjetas[$t]['id_tarjeta']] + $fila;
+                } elseif ($tarjetas[$t]['viajes_gratis_restantes'] > 0) {
                     $tarjetas[$t]['viajes_gratis_restantes']--;
                     $fila = ['monto' => 0, 'viaje_gratis' => true, 'metodo_pago' => 'tarjeta_ciudadana', 'id_tarjeta' => $tarjetas[$t]['id_tarjeta']] + $fila;
-                } elseif ($tarjetas[$t]['saldo'] >= $tarifa) {
+                } elseif ($tarjetas[$t]['saldo'] - $tarifa >= $saldoInicial[$t] / 2) {
                     $tarjetas[$t]['saldo'] -= $tarifa;
                     $fila = ['metodo_pago' => 'tarjeta_ciudadana', 'id_tarjeta' => $tarjetas[$t]['id_tarjeta']] + $fila;
                 }
             }
             $transacciones[] = $fila;
+        };
+
+        // Días anteriores (para las gráficas de la semana): pagos en los buses de cada línea.
+        $paradasDeLinea = [];
+        foreach ($busesAsignados as [$idBus, $codigo]) {
+            $paradasDeLinea[$codigo] ??= array_map(fn ($p) => $est[$p[0]], $lin[$codigo]['paradas']);
         }
-        $molinetes = array_map(fn ($m) => array_diff_key($m, ['id_estacion' => true]), $molinetes);
+        for ($dia = (int) round(6 * $escala); $dia >= 1; $dia--) {
+            $base = strtotime("today 05:00 -{$dia} days");
+            for ($k = (int) round(mt_rand(250, 400) * $escala); $k > 0; $k--) {
+                [$idBus, $codigo] = $azar($busesAsignados);
+                $pago($idBus, $lin[$codigo]['id'], $azar($paradasDeLinea[$codigo]), null, $base + mt_rand(0, 14 * 3600));
+            }
+        }
 
         // ---------------- VIAJES Y VISITAS DE HOY ----------------
+        // En cada parada el molinete de salida cuenta a los que bajan y el de entrada cobra a los que suben
+        // (el mismo reparto que usa la simulación). Al final del recorrido bajan todos.
+        $aforoDe = $aforoDeDia;
         $viajes = $visitas = [];
         foreach ($busesAsignados as $i => [$idBus, $codigo]) {
-            $inicio = strtotime('today 05:00') + $i * 480;
-            $enCurso = $i % 4 === 0;
+            // Los buses en ruta van a mitad de un viaje (cada uno en una estación distinta); los demás ya terminaron el suyo.
+            $enCurso = $buses[$i]['estado_logico'] === 'en_ruta';
+            if ($escala < 1 && ! $enCurso) {
+                continue;   // inicio de uso: los buses que no están en ruta todavía no han hecho ningún viaje hoy
+            }
+            if ($respetarHorarios && $ahora < $lin[$codigo]['abre']) {
+                continue;   // la línea todavía no abre hoy: no hay viajes
+            }
+            $total = count($lin[$codigo]['paradas']);
+            $hasta = 1 + ($i * 7) % max(1, $total - 1);
+            $capacidad = $buses[$i]['capacidad_maxima'];
             $idViaje = $uuid();
-            $t = $inicio;
-            $ultimaSalida = $inicio;
+            $t = 0;
+            $aBordo = 0;
+            $filas = [];
             foreach ($lin[$codigo]['paradas'] as $k => [$estacion, $km]) {
-                if ($enCurso && $k >= 3) {
+                if ($enCurso && $k >= $hasta) {
+                    break;
+                }
+                // Un viaje en curso no puede haber salido antes de que abriera la línea.
+                if ($enCurso && $respetarHorarios && $t + (int) round($km * 150) + 345 + 160 > $ahora - $lin[$codigo]['abre']) {
                     break;
                 }
                 $t += (int) round($km * 150);
-                $ocupacion = mt_rand(5, 95);
-                $espera = 45 + ($ocupacion < 25 ? 300 : 0);   // punto 15: +5 min si va por debajo del 25 %
-                $visitas[] = ['id_visita' => $uuid(), 'id_viaje' => $idViaje, 'id_estacion' => $est[$estacion],
-                    'orden_visita' => $k + 1, 'hora_llegada' => $fecha($t), 'hora_salida' => $fecha($t + $espera),
-                    'ocupacion_al_llegar_pct' => $ocupacion];
+                $p = SimuladorOperacion::repartirParada($aBordo, $capacidad, $aforoDe[$est[$estacion]], $k === $total - 1);
+                $llegaCon = $aBordo;
+                $aBordo = $p['a_bordo'];
+                $espera = 45 + ($aBordo * 100 / $capacidad < 25 ? 300 : 0);   // punto 15: +5 min si va por debajo del 25 %
+                $filas[] = [$est[$estacion], $k + 1, $t, $t + $espera, round($llegaCon * 100 / $capacidad, 2), $p['subieron'], $p['bajaron']];
                 $t += $espera;
-                $ultimaSalida = $t;
             }
+            // Horas reales: el viaje en curso salió de su última estación hace unos segundos (así se ve avanzar
+            // en el monitoreo en vivo); los viajes terminados acabaron antes de ahora.
+            $tope = $respetarHorarios ? min($ahora, $lin[$codigo]['cierra']) : $ahora;   // los viajes terminados acabaron antes del cierre
+            $inicio = $enCurso ? $ahora - ($i % 4) * 40 - $t
+                : min($lin[$codigo]['abre'] + ($i % 60) * 480, $tope - $t - 900);
+            if (! $enCurso && $respetarHorarios && $inicio < $lin[$codigo]['abre']) {
+                continue;   // no alcanzó a hacer un recorrido completo en el horario de hoy
+            }
+            foreach ($filas as [$idEstacion, $orden, $llegada, $salida, $ocupacion, $suben, $bajan]) {
+                $idVisita = $uuid();
+                $visitas[] = ['id_visita' => $idVisita, 'id_viaje' => $idViaje, 'id_estacion' => $idEstacion,
+                    'orden_visita' => $orden, 'hora_llegada' => $fecha($inicio + $llegada), 'hora_salida' => $fecha($inicio + $salida),
+                    'ocupacion_al_llegar_pct' => $ocupacion, 'subieron' => $suben, 'bajaron' => $bajan];
+                if ($bajan > 0) {
+                    $bajadas[] = ['id_bajada' => $uuid(), 'id_molinete' => $molineteBus[$idBus]['salida_bus'], 'id_bus' => $idBus,
+                        'id_estacion' => $idEstacion, 'id_visita' => $idVisita, 'cantidad' => $bajan, 'fecha_hora' => $fecha($inicio + $llegada)];
+                }
+                for ($k = 0; $k < $suben; $k++) {
+                    $pago($idBus, $lin[$codigo]['id'], $idEstacion, $idVisita, $inicio + $llegada + 5 + intdiv($k, 3));
+                }
+            }
+            $buses[$i]['pasajeros_a_bordo'] = $enCurso ? $aBordo : 0;
             $viajes[] = ['id_viaje' => $idViaje, 'id_bus' => $idBus, 'id_linea' => $lin[$codigo]['id'],
-                'fecha_hora_inicio' => $fecha($inicio), 'fecha_hora_fin' => $enCurso ? null : $fecha($ultimaSalida),
+                'fecha_hora_inicio' => $fecha($inicio), 'fecha_hora_fin' => $enCurso ? null : $fecha($inicio + $t),
                 'estado' => $enCurso ? 'en_curso' : 'finalizado'];
         }
 
@@ -363,6 +460,56 @@ class TransmetroDatos
             'datos_previos' => json_encode(['estado_logico' => 'en_espera']), 'datos_nuevos' => json_encode(['estado_logico' => 'en_ruta']),
             'fecha_registro' => $fecha($ahora - 3600),
         ]];
+
+        // ---------------- OPERADORES: uno por estación, en la PC de la estación (punto 16) ----------------
+        // Se generan al final para no cambiar los demás datos de prueba (mismo orden de números al azar).
+        $operadorUsuario = null;
+        foreach ($est as $nombre => $idEstacion) {
+            $id = $nuevoEmpleado('operador');
+            $operadores[] = ['id_empleado' => $id, 'nivel_estudios' => $azar(self::NIVELES),
+                'anios_experiencia_monitoreo' => mt_rand(1, 10), 'id_estacion_asignada' => $idEstacion];
+            if ($nombre === 'San Sebastián') {
+                $operadorUsuario = $id;   // el usuario de prueba trabaja en San Sebastián (L1 y L2)
+            }
+        }
+
+        // ---------------- MANTENIMIENTO DE LOS BUSES ----------------
+        $mantenimientos = [];
+        $fallas = [
+            ['frenos', 'Ruido metálico al frenar en bajada.'], ['puertas', 'La puerta trasera tarda en cerrar.'],
+            ['aire', 'El aire acondicionado no enfría en la parte de atrás.'], ['validador', 'El validador de tarjetas se reinicia solo.'],
+            ['llantas', 'Desgaste irregular en la llanta delantera derecha.'], ['electrico', 'Luces internas parpadean.'],
+        ];
+        foreach ($buses as $i => $bus) {
+            $km = mt_rand(40000, 220000);
+            // Servicio preventivo cada ~10 000 km: los dos últimos, ya resueltos.
+            foreach ([mt_rand(70, 120), mt_rand(15, 60)] as $k => $dias) {
+                $cuando = $ahora - $dias * 86400;
+                $mantenimientos[] = ['id_mantenimiento' => $uuid(), 'id_bus' => $bus['id_bus'], 'id_empleado_reporta' => null,
+                    'tipo' => 'preventivo', 'categoria' => 'motor', 'prioridad' => 'media', 'estado' => 'resuelto',
+                    'descripcion' => 'Servicio preventivo: cambio de aceite y filtros, revisión de frenos y llantas.',
+                    'kilometraje' => $km - (2 - $k) * 10000, 'fecha_reporte' => $fecha($cuando), 'fecha_cierre' => $fecha($cuando + 6 * 3600)];
+            }
+            if ($bus['estado_logico'] === 'en_mantenimiento') {
+                [$categoria, $texto] = $azar($fallas);
+                $mantenimientos[] = ['id_mantenimiento' => $uuid(), 'id_bus' => $bus['id_bus'], 'id_empleado_reporta' => null,
+                    'tipo' => 'correctivo', 'categoria' => $categoria, 'prioridad' => 'alta', 'estado' => 'en_proceso',
+                    'descripcion' => $texto.' En taller.', 'kilometraje' => $km, 'fecha_reporte' => $fecha($ahora - mt_rand(1, 4) * 86400), 'fecha_cierre' => null];
+            } elseif ($i % 7 === 0 && isset($operadores[$i])) {
+                [$categoria, $texto] = $azar($fallas);
+                $mantenimientos[] = ['id_mantenimiento' => $uuid(), 'id_bus' => $bus['id_bus'], 'id_empleado_reporta' => $operadores[$i]['id_empleado'],
+                    'tipo' => 'falla', 'categoria' => $categoria, 'prioridad' => 'baja', 'estado' => 'reportado',
+                    'descripcion' => $texto, 'kilometraje' => $km, 'fecha_reporte' => $fecha($ahora - mt_rand(2, 30) * 3600), 'fecha_cierre' => null];
+            }
+        }
+
+        // ---------------- USUARIOS (credenciales de prueba) ----------------
+        $users = [
+            ['name' => 'Administrador Municipal', 'email' => 'admin@transmetro.test', 'email_verified_at' => $fecha($ahora),
+                'password' => $hash('admin123'), 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'administrador', 'id_empleado' => null],
+            ['name' => 'Operador estación San Sebastián', 'email' => 'operador@transmetro.test', 'email_verified_at' => $fecha($ahora),
+                'password' => $hash('operador123'), 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'operador', 'id_empleado' => $operadorUsuario],
+        ];
 
         return [
             // Orden de inserción (respeta llaves foráneas y triggers).
@@ -380,18 +527,33 @@ class TransmetroDatos
                 'pilotos' => $pilotos,
                 'seguridad' => $seguridad,
                 'operadores' => $operadores,
+                'mantenimientos_bus' => $mantenimientos,
                 'users' => $users,
                 'tarjetas' => $tarjetas,
                 'recargas' => $recargas,
-                'transacciones_pago' => $transacciones,
                 'viajes' => $viajes,
                 'visitas_viaje' => $visitas,
+                'transacciones_pago' => $transacciones,
+                'bajadas_bus' => $bajadas,
                 'alertas_sistema' => $alertas,
                 'bitacora_auditoria' => $bitacora,
             ],
-            // Punto 14: San Sebastián queda saturada (160 %); el trigger crea la alerta abierta.
-            'aforos' => [$est['San Sebastián'] => 480],
+            // Punto 14: San Sebastián queda saturada (160 %); el trigger crea la alerta abierta (solo si sus líneas están en servicio).
+            'aforos' => isset($conServicio[$est['San Sebastián']]) ? [$est['San Sebastián'] => 480] : [],
         ];
+    }
+
+    /**
+     * Placa de Guatemala para el bus número $n, como las del Transmetro (p. ej. C387JGL):
+     * C (vehículo comercial) + 3 números + 3 consonantes. Distinta para cada bus.
+     */
+    public static function placa(int $n): string
+    {
+        $letras = 'BCDFGHJKLMNPQRSTVWXYZ';
+        $k = $n - 1 + 3000;
+
+        return 'C'.str_pad((string) (100 + (($n - 1) * 137) % 900), 3, '0', STR_PAD_LEFT)
+            .$letras[intdiv($k, 441) % 21].$letras[intdiv($k, 21) % 21].$letras[$k % 21];
     }
 
     /** Distancia aproximada en km entre dos coordenadas (fórmula de Haversine). */

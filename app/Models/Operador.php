@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Operador de la PC de trabajo de una estación (punto 16).
+ * Operador (punto 16): trabaja en la PC de UNA estación. Desde su pantalla ve cuánta gente espera,
+ * los buses detenidos y en camino, pide otro bus, atiende las alertas de la estación, controla los
+ * molinetes de sus accesos y ve a los guardias de turno.
  */
 class Operador extends Model
 {
@@ -39,6 +41,7 @@ class Operador extends Model
         return $this->belongsTo(Empleado::class, 'id_empleado', 'id_empleado');
     }
 
+    /** Estación en cuya PC trabaja el operador. */
     public function estacion(): BelongsTo
     {
         return $this->belongsTo(Estacion::class, 'id_estacion_asignada', 'id_estacion');
