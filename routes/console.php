@@ -2,12 +2,14 @@
 
 use App\Models\Estacion;
 use App\Services\ExportadorTrazos;
+use App\Services\LimpiezaSimulacion;
 use App\Services\Reportes;
 use App\Services\SimuladorOperacion;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 
 Artisan::command('inspire', function () {
@@ -69,24 +71,64 @@ Artisan::command('transmetro:cerrar-sesiones', function () {
     $this->info("Sesiones cerradas: {$cerradas}.");
 })->purpose('Cierra todas las sesiones para empezar en el inicio de sesión');
 
-// Motor de la simulación en segundo plano: mientras la simulación esté encendida ejecuta un ciclo cada pocos
-// segundos, sin depender de que haya una página abierta. Lo arranca iniciar.bat junto con el servidor web,
-// así el servidor queda libre para atender las pantallas (antes cada ciclo lo frenaba unos segundos).
-Artisan::command('transmetro:motor {--pausa=5 : Segundos entre ciclos}', function (SimuladorOperacion $simulador) {
+// Motor de la simulación en segundo plano. Mientras la simulación esté encendida calcula la operación las 24 horas:
+// un ciclo cada pocos segundos si alguien tiene una pantalla abierta y uno cada pocos minutos si nadie la ve.
+// Además, cada hora borra la operación simulada vieja (LimpiezaSimulacion) y, en Render, visita /up cada 10 minutos
+// para que el plan gratis no apague el servidor. iniciar.bat (laptop) y docker/iniciar.sh (Render) lo arrancan.
+Artisan::command('transmetro:motor {--pausa=5 : Segundos entre cada revisión} {--minutos=0 : Terminar después de N minutos (0 = nunca); el arranque lo vuelve a iniciar}', function (SimuladorOperacion $simulador, LimpiezaSimulacion $limpieza) {
     $pausa = max(2, (int) $this->option('pausa'));
-    $this->info("Motor de simulación en marcha (un ciclo cada {$pausa} s mientras la simulación esté encendida).");
+    $minutos = max(0, (int) $this->option('minutos'));
+    $url = rtrim((string) config('transmetro.url_mantener_despierto'), '/');
+    $inicio = time();
+    $ultimoLatido = $ultimaLimpieza = $ultimaVisita = 0;
+    $this->info('Motor de simulación en marcha.');
 
-    while (true) {
+    while ($minutos === 0 || time() - $inicio < $minutos * 60) {
         try {
-            $simulador->latido();
-            if ($simulador->activa()) {
-                $simulador->ciclo();
+            if (time() - $ultimoLatido >= 60) {
+                $simulador->latido();
+                $ultimoLatido = time();
+            }
+            $simulador->cicloDelMotor();
+            if (time() - $ultimaLimpieza >= 3600) {
+                $ultimaLimpieza = time();
+                $resultado = $limpieza->limpiarSegunEspacio();
+                if (array_sum($resultado['borrados'])) {
+                    $this->line('Limpieza: '.json_encode($resultado['borrados'])." · base {$resultado['tamano_mb']} MB");
+                }
             }
         } catch (Throwable $e) {
-            // Si se corta la conexión con la base de datos, se reintenta en el siguiente ciclo.
+            // Si se corta la conexión con la base de datos, se reintenta en la siguiente vuelta.
             report($e);
             DB::reconnect();
         }
+
+        if ($url !== '' && time() - $ultimaVisita >= 600) {
+            $ultimaVisita = time();
+            try {
+                Http::timeout(30)->get($url.'/up');
+            } catch (Throwable) {
+                // Si la visita falla no pasa nada: se intenta de nuevo en 10 minutos.
+            }
+        }
         sleep($pausa);
     }
-})->purpose('Ejecuta la simulación en segundo plano mientras esté encendida');
+
+    return 0;
+})->purpose('Calcula la simulación en segundo plano, limpia los datos viejos y mantiene despierto el servidor');
+
+// Borra a mano la operación simulada vieja. Ejemplo: php artisan transmetro:limpiar --horas=24
+Artisan::command('transmetro:limpiar {--horas= : Conservar solo las últimas N horas (por defecto, config/transmetro.php)}', function (LimpiezaSimulacion $limpieza) {
+    $horas = $this->option('horas') !== null ? (int) $this->option('horas') : (int) config('transmetro.retencion_horas');
+    if ($horas <= 0) {
+        $this->warn('La limpieza está desactivada (TRANSMETRO_RETENCION_HORAS=0). Use --horas=N.');
+
+        return 0;
+    }
+    foreach ($limpieza->limpiar($horas) as $tabla => $n) {
+        $this->line(str_pad($tabla, 20).$n.' filas borradas');
+    }
+    $this->info("Base de datos: {$limpieza->tamanoBaseMb()} MB");
+
+    return 0;
+})->purpose('Borra los pagos, bajadas, viajes y alertas simulados más antiguos que N horas');

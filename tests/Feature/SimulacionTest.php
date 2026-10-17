@@ -11,6 +11,7 @@ use App\Models\VisitaViaje;
 use App\Services\ConteoPasajeros;
 use App\Services\SimuladorOperacion;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -399,4 +400,75 @@ test('sin tráfico configurado, el tramo dura lo de la distancia', function () {
 
     expect(SimuladorOperacion::segundosTramo(1.0, Carbon::parse('next monday 07:15'), 'x|1'))->toBe(150)
         ->and(SimuladorOperacion::segundosTramo(0.1))->toBe(SimuladorOperacion::SEGUNDOS_MINIMO_TRAMO);
+});
+
+test('la simulación sigue encendida aunque el servidor se reinicie (el estado se guarda en la base de datos)', function () {
+    $this->simulador->activar();
+
+    // Al reiniciar el servidor se pierde la caché en archivos/memoria, pero no la base de datos.
+    Cache::flush();
+    expect(app(SimuladorOperacion::class)->activa())->toBeTrue();
+
+    $this->simulador->pausar();
+    Cache::flush();
+    expect(app(SimuladorOperacion::class)->activa())->toBeFalse();
+});
+
+test('en la versión publicada la simulación arranca encendida si nadie la ha pausado', function () {
+    Cache::store('database')->forget(SimuladorOperacion::CLAVE_ACTIVA);
+
+    config(['transmetro.simulacion_encendida' => false]);
+    expect($this->simulador->activa())->toBeFalse();
+
+    config(['transmetro.simulacion_encendida' => true]);
+    expect($this->simulador->activa())->toBeTrue();
+});
+
+test('las pantallas abiertas no repiten ciclos: como máximo uno cada pocos segundos aunque haya varias', function () {
+    $this->simulador->activar();
+    $operador = $this->operador();
+
+    $this->actingAs($operador)->postJson(route('mapa.ciclo'))->assertOk();
+    $this->actingAs($this->administrador())->postJson(route('mapa.ciclo'))->assertOk();
+
+    expect($this->simulador->numeroCiclo())->toBe(1)
+        ->and($this->simulador->alguienMirando())->toBeTrue();
+});
+
+test('si el motor en segundo plano está corriendo, la pantalla abierta no ejecuta ciclos', function () {
+    $this->simulador->activar();
+    $this->simulador->latido();
+
+    $this->actingAs($this->operador())->postJson(route('mapa.ciclo'))->assertOk();
+
+    expect($this->simulador->numeroCiclo())->toBe(0)
+        ->and($this->simulador->alguienMirando())->toBeTrue();
+});
+
+test('el motor calcula seguido si alguien mira y cada pocos minutos si nadie mira', function () {
+    $cache = Cache::store('database');
+    config(['transmetro.motor_segundos_con_vista' => 5, 'transmetro.motor_segundos_sin_vista' => 120]);
+    $this->simulador->activar();
+
+    // Nadie mirando y el último ciclo fue hace 1 minuto: todavía no toca.
+    $cache->put(SimuladorOperacion::CLAVE_ULTIMO_CICLO, time() - 60, 600);
+    $this->simulador->cicloDelMotor();
+    expect($this->simulador->numeroCiclo())->toBe(0);
+
+    // Alguien abrió una pantalla: ya toca (pasaron más de 5 segundos).
+    $this->simulador->marcarVista();
+    $this->simulador->cicloDelMotor();
+    expect($this->simulador->numeroCiclo())->toBe(1);
+
+    // Nadie mirando, pero ya pasaron más de 2 minutos: toca otra vez.
+    $cache->forget(SimuladorOperacion::CLAVE_VISTA);
+    $cache->put(SimuladorOperacion::CLAVE_ULTIMO_CICLO, time() - 130, 600);
+    $this->simulador->cicloDelMotor();
+    expect($this->simulador->numeroCiclo())->toBe(2);
+
+    // En pausa, el motor no calcula nada.
+    $this->simulador->pausar();
+    $cache->put(SimuladorOperacion::CLAVE_ULTIMO_CICLO, time() - 600, 600);
+    $this->simulador->cicloDelMotor();
+    expect($this->simulador->numeroCiclo())->toBe(2);
 });

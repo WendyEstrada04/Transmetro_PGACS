@@ -47,3 +47,13 @@ services:
         value: file
       - key: QUEUE_CONNECTION
         value: sync
+      - key: TRANSMETRO_SIMULACION_ENCENDIDA
+        value: "true"          # la simulación arranca encendida y no se apaga al reiniciar el servidor
+      - key: TRANSMETRO_MANTENER_DESPIERTO
+        value: "true"          # el motor visita /up cada 10 minutos para que Render no apague el servidor
+      - key: TRANSMETRO_MOTOR_SEGUNDOS_SIN_VISTA
+        value: "180"           # sin nadie mirando, un ciclo cada 3 minutos (poca transferencia a Supabase)
+      - key: TRANSMETRO_RETENCION_HORAS
+        value: "48"            # cada hora se borra la operación simulada con más de 2 días
+      - key: TRANSMETRO_LIMITE_BASE_MB
+        value: "350"           # si la base pasa de 350 MB se conservan solo las últimas 12 horas

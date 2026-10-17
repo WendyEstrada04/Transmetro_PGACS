@@ -9,6 +9,7 @@ use App\Models\Estacion;
 use App\Models\Linea;
 use App\Models\Tarjeta;
 use App\Models\Viaje;
+use Illuminate\Contracts\Cache\Repository;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -45,6 +46,15 @@ class SimuladorOperacion
     /** Última señal del motor en segundo plano (php artisan transmetro:motor). */
     public const CLAVE_MOTOR = 'simulacion.motor';
 
+    /** Última vez que una pantalla abierta pidió ver la simulación. */
+    public const CLAVE_VISTA = 'simulacion.vista';
+
+    /** Hora (timestamp) del último ciclo, en cualquier equipo conectado a la misma base de datos. */
+    public const CLAVE_ULTIMO_CICLO = 'simulacion.ultimo_ciclo';
+
+    /** Segundos mínimos entre dos ciclos pedidos por las pantallas abiertas. */
+    public const PAUSA_MINIMA_PAGINA = 4;
+
     /** Buses que avanzan en cada ciclo (se rotan para no saturar la base remota). */
     public const BUSES_POR_CICLO = 40;
 
@@ -58,6 +68,12 @@ class SimuladorOperacion
     public const SEGUNDOS_POR_KM = 150;
 
     public const SEGUNDOS_MINIMO_TRAMO = 30;
+
+    /**
+     * Columnas de las líneas que usa el simulador. No se lee el trazo del mapa (unos 70 KB por consulta):
+     * el simulador no lo necesita y así cada ciclo transfiere muy pocos datos desde Supabase.
+     */
+    public const COLUMNAS_LINEA = 'id_linea,id_municipio,codigo_linea,distancia_total_km,estado,nombre,tipo_servicio,tarifa,color,ruta_circular';
 
     /** Tiempo que tiene el operador para mandar otro bus ante una alerta de bus lleno antes de que lo haga la central. */
     public const SEGUNDOS_ESPERA_BUS_LLENO = 90;
@@ -125,58 +141,114 @@ class SimuladorOperacion
      */
     private ?array $estado = null;
 
-    /** El motor en segundo plano avisa que está corriendo. */
+    /**
+     * Estado compartido de la simulación (encendida, motor, pantallas abiertas, último ciclo). Se guarda en la
+     * base de datos y no en archivos: así lo ven todos los equipos que usan la misma base (la versión publicada
+     * en Render y la laptop) y no se pierde cuando el servidor se reinicia.
+     */
+    private function compartido(): Repository
+    {
+        return Cache::store('database');
+    }
+
+    /** El motor en segundo plano avisa que está corriendo (cada minuto). */
     public function latido(): void
     {
-        Cache::put(self::CLAVE_MOTOR, time(), 120);
+        $this->compartido()->put(self::CLAVE_MOTOR, time(), 300);
     }
 
     /** ¿Hay un motor en segundo plano ejecutando los ciclos? (si no, los ejecuta la página abierta). */
     public function motorEnMarcha(): bool
     {
-        return (int) Cache::get(self::CLAVE_MOTOR, 0) >= time() - 20;
+        return (int) $this->compartido()->get(self::CLAVE_MOTOR, 0) >= time() - 90;
+    }
+
+    /** Una pantalla abierta avisa que alguien está mirando la simulación. */
+    public function marcarVista(): void
+    {
+        $this->compartido()->put(self::CLAVE_VISTA, time(), 300);
+    }
+
+    /** ¿Alguien tiene abierta una pantalla del sistema (en los últimos 30 segundos)? */
+    public function alguienMirando(): bool
+    {
+        return (int) $this->compartido()->get(self::CLAVE_VISTA, 0) >= time() - 30;
+    }
+
+    public function segundosDesdeUltimoCiclo(): int
+    {
+        return time() - (int) $this->compartido()->get(self::CLAVE_ULTIMO_CICLO, 0);
     }
 
     /**
-     * Ciclo pedido por una página abierta (monitoreo en vivo o consola de simulación). Si el motor en segundo
-     * plano ya está corriendo no se repite el trabajo: la página solo lee el estado y responde al instante.
+     * Ciclo pedido por una página abierta (monitoreo en vivo o consola de simulación). La página avisa que
+     * alguien está mirando; si hay un motor en segundo plano, él hace el trabajo y la página solo lee el estado.
+     * Si no hay motor, la página ejecuta el ciclo, como máximo uno cada PAUSA_MINIMA_PAGINA segundos aunque
+     * haya varias pantallas abiertas.
      */
     public function cicloDesdePagina(?int $idUsuario = null): array
     {
-        return $this->activa() && ! $this->motorEnMarcha() ? $this->ciclo($idUsuario) : [];
+        if (! $this->activa()) {
+            return [];
+        }
+        $this->marcarVista();
+
+        return $this->motorEnMarcha() || $this->segundosDesdeUltimoCiclo() < self::PAUSA_MINIMA_PAGINA ? [] : $this->ciclo($idUsuario);
     }
 
+    /**
+     * Una vuelta del motor en segundo plano. Con alguien mirando, un ciclo cada pocos segundos para que los buses
+     * se vean avanzar; sin nadie mirando, un ciclo cada pocos minutos: la operación sigue calculándose las 24 horas
+     * pero con muy poco tráfico hacia la base de datos (Supabase gratis: 5 GB de transferencia al mes).
+     */
+    public function cicloDelMotor(): array
+    {
+        $estado = $this->compartido()->many([self::CLAVE_ACTIVA, self::CLAVE_VISTA, self::CLAVE_ULTIMO_CICLO]);
+        if (! (bool) ($estado[self::CLAVE_ACTIVA] ?? config('transmetro.simulacion_encendida'))) {
+            return [];
+        }
+        $mirando = (int) ($estado[self::CLAVE_VISTA] ?? 0) >= time() - 30;
+        $espera = $mirando ? (int) config('transmetro.motor_segundos_con_vista') : (int) config('transmetro.motor_segundos_sin_vista');
+
+        return time() - (int) ($estado[self::CLAVE_ULTIMO_CICLO] ?? 0) >= $espera ? $this->ciclo() : [];
+    }
+
+    /**
+     * ¿La simulación está encendida? El estado se guarda en la base de datos (tabla cache) y no en archivos,
+     * para que siga encendida aunque el servidor se reinicie o se duerma (Render, plan gratis). Si nadie la ha
+     * encendido ni pausado, se usa el valor de config/transmetro.php (encendida en la versión publicada).
+     */
     public function activa(): bool
     {
-        return (bool) Cache::get(self::CLAVE_ACTIVA, false);
+        return (bool) $this->compartido()->get(self::CLAVE_ACTIVA, config('transmetro.simulacion_encendida'));
     }
 
     public function activar(): void
     {
-        Cache::forever(self::CLAVE_ACTIVA, true);
+        $this->compartido()->forever(self::CLAVE_ACTIVA, true);
         $this->evento('info', 'Simulación iniciada.');
     }
 
     public function pausar(): void
     {
-        Cache::forever(self::CLAVE_ACTIVA, false);
+        $this->compartido()->forever(self::CLAVE_ACTIVA, false);
         $this->evento('info', 'Simulación en pausa.');
     }
 
     public function numeroCiclo(): int
     {
-        return $this->estado['ciclo'] ?? (int) Cache::get(self::CLAVE_CICLO, 0);
+        return $this->estado['ciclo'] ?? (int) $this->compartido()->get(self::CLAVE_CICLO, 0);
     }
 
     /** @return list<array{hora: string, tipo: string, texto: string}> */
     public function eventos(): array
     {
-        return $this->estado['eventos'] ?? Cache::get(self::CLAVE_EVENTOS, []);
+        return $this->estado['eventos'] ?? $this->compartido()->get(self::CLAVE_EVENTOS, []);
     }
 
     private function cargarEstado(): void
     {
-        $valores = Cache::many([self::CLAVE_CICLO, self::CLAVE_EVENTOS, self::CLAVE_VISTAS, 'simulacion.sin_bus']);
+        $valores = $this->compartido()->many([self::CLAVE_CICLO, self::CLAVE_EVENTOS, self::CLAVE_VISTAS, 'simulacion.sin_bus']);
         $this->estado = [
             'ciclo' => (int) ($valores[self::CLAVE_CICLO] ?? 0),
             'eventos' => $valores[self::CLAVE_EVENTOS] ?? [],
@@ -187,7 +259,7 @@ class SimuladorOperacion
 
     private function guardarEstado(): void
     {
-        Cache::putMany([
+        $this->compartido()->putMany([
             self::CLAVE_CICLO => $this->estado['ciclo'],
             self::CLAVE_EVENTOS => array_slice($this->estado['eventos'], 0, 60),
             self::CLAVE_VISTAS => $this->estado['vistas'],
@@ -202,10 +274,12 @@ class SimuladorOperacion
      */
     public function ciclo(?int $idUsuario = null): array
     {
-        $candado = Cache::lock('simulacion.ciclo.candado', 30);
+        // El candado está en la base de datos: si la laptop y el servidor publicado piden un ciclo a la vez, solo uno lo ejecuta.
+        $candado = $this->compartido()->lock('simulacion.ciclo.candado', 30);
         if (! $candado->get()) {
             return [];   // ya hay un ciclo corriendo
         }
+        $this->compartido()->put(self::CLAVE_ULTIMO_CICLO, time(), 86400);
 
         try {
             $this->cargarEstado();
@@ -265,7 +339,7 @@ class SimuladorOperacion
     /** Ids de las líneas que deben estar circulando ahora, según su horario. */
     public function lineasEnServicio(): array
     {
-        return Linea::with('horarios')->get()->filter(fn (Linea $l) => $l->operaAhora())->pluck('id_linea')->all();
+        return Linea::select(explode(',', self::COLUMNAS_LINEA))->with('horarios')->get()->filter(fn (Linea $l) => $l->operaAhora())->pluck('id_linea')->all();
     }
 
     /** Lista de uuid en el formato de arreglo de PostgreSQL. */
@@ -286,7 +360,7 @@ class SimuladorOperacion
         $ahora = Carbon::now();
         $enServicio = $this->lineasEnServicio();
 
-        foreach (Linea::with('horarios')->where('estado', 'activa')->whereNotIn('id_linea', $enServicio)->get() as $linea) {
+        foreach (Linea::select(explode(',', self::COLUMNAS_LINEA))->with('horarios')->where('estado', 'activa')->whereNotIn('id_linea', $enServicio)->get() as $linea) {
             $fin = $linea->horarioDelDia()?->fin();
             $cerro = $fin ? Carbon::parse("today {$fin}") : null;
             // Antes de abrir, lo que quedó de ayer se retira de inmediato; después del cierre, tras unos minutos de gracia.
@@ -313,7 +387,7 @@ class SimuladorOperacion
         if (! config('transmetro.respetar_horarios', true)) {
             return;
         }
-        $lineas = Linea::whereIn('id_linea', $this->lineasEnServicio())->get();
+        $lineas = Linea::select(explode(',', self::COLUMNAS_LINEA))->whereIn('id_linea', $this->lineasEnServicio())->get();
         foreach ($lineas as $linea) {
             $enCurso = Viaje::where('id_linea', $linea->id_linea)->where('estado', 'en_curso')->count();
             if ($enCurso >= self::BUSES_MINIMOS_EN_CALLE) {
@@ -372,7 +446,7 @@ class SimuladorOperacion
         $viajes = Viaje::query()
             ->where('viajes.estado', 'en_curso')
             ->whereHas('bus.piloto')   // sin piloto la unidad no circula
-            ->with(['bus.linea', 'linea'])
+            ->with(['bus.linea:'.self::COLUMNAS_LINEA, 'linea:'.self::COLUMNAS_LINEA])
             ->withMax('visitas', 'orden_visita')
             ->withMax('visitas', 'hora_salida')
             ->get();
@@ -663,7 +737,7 @@ class SimuladorOperacion
     /** Muestra en el registro las alertas creadas por el trigger durante el ciclo (las de bus lleno ya se anotaron al crearse). */
     private function registrarAlertasNuevas(): void
     {
-        $vistas = $this->estado['vistas'] ?? Cache::get(self::CLAVE_VISTAS, []);
+        $vistas = $this->estado['vistas'] ?? $this->compartido()->get(self::CLAVE_VISTAS, []);
         $nuevas = AlertaSistema::abiertas()->whereIn('tipo_alerta', AlertaSistema::DE_REFUERZO)
             ->whereNotIn('id_alerta', array_keys($vistas))
             ->with('estacion')
@@ -680,7 +754,7 @@ class SimuladorOperacion
         if ($this->estado !== null) {
             $this->estado['vistas'] = $vistas;
         } else {
-            Cache::forever(self::CLAVE_VISTAS, $vistas);
+            $this->compartido()->forever(self::CLAVE_VISTAS, $vistas);
         }
     }
 
@@ -690,7 +764,7 @@ class SimuladorOperacion
      */
     private function despacharRefuerzosPendientes(?int $idUsuario): void
     {
-        $vistas = $this->estado['vistas'] ?? Cache::get(self::CLAVE_VISTAS, []);
+        $vistas = $this->estado['vistas'] ?? $this->compartido()->get(self::CLAVE_VISTAS, []);
         $ciclo = $this->numeroCiclo();
         if (! $vistas) {
             return;   // ninguna alerta pendiente vista en ciclos anteriores
@@ -730,7 +804,7 @@ class SimuladorOperacion
             ->whereIn('estado_logico', ['en_espera', 'en_ruta'])
             ->whereHas('piloto')   // solo sale de refuerzo una unidad con piloto
             ->whereDoesntHave('viajes', fn ($q) => $q->where('estado', 'en_curso'))
-            ->with('linea')
+            ->with('linea:'.self::COLUMNAS_LINEA)
             ->when($lineaPreferida, fn ($q) => $q->orderByRaw('CASE WHEN id_linea_asignada = ? THEN 0 ELSE 1 END', [$lineaPreferida]))
             ->orderByRaw("CASE WHEN estado_logico = 'en_espera' THEN 0 ELSE 1 END")
             ->orderBy('placa')
@@ -738,13 +812,13 @@ class SimuladorOperacion
             ->first();
 
         if (! $bus) {
-            $avisadas = $this->estado['sin_bus'] ?? Cache::get('simulacion.sin_bus', []);
+            $avisadas = $this->estado['sin_bus'] ?? $this->compartido()->get('simulacion.sin_bus', []);
             if (! in_array($alerta->id_alerta, $avisadas, true)) {
                 $this->evento('alerta', "Sin buses disponibles para {$estacion->nombre}: la alerta sigue abierta.");
                 if ($this->estado !== null) {
                     $this->estado['sin_bus'][] = $alerta->id_alerta;
                 } else {
-                    Cache::forever('simulacion.sin_bus', array_slice([...$avisadas, $alerta->id_alerta], -100));
+                    $this->compartido()->forever('simulacion.sin_bus', array_slice([...$avisadas, $alerta->id_alerta], -100));
                 }
             }
 
@@ -779,10 +853,10 @@ class SimuladorOperacion
     public function reiniciar(): void
     {
         DB::update('UPDATE estaciones SET aforo_actual = ROUND(aforo_maximo * (0.2 + random() * 0.3))::int');
-        Cache::forget(self::CLAVE_EVENTOS);
-        Cache::forget(self::CLAVE_VISTAS);
-        Cache::forget('simulacion.sin_bus');
-        Cache::forever(self::CLAVE_CICLO, 0);
+        $this->compartido()->forget(self::CLAVE_EVENTOS);
+        $this->compartido()->forget(self::CLAVE_VISTAS);
+        $this->compartido()->forget('simulacion.sin_bus');
+        $this->compartido()->forever(self::CLAVE_CICLO, 0);
         $this->evento('info', 'Aforos reiniciados (entre el 20 % y el 50 %).');
     }
 
@@ -797,8 +871,8 @@ class SimuladorOperacion
 
             return;
         }
-        $eventos = Cache::get(self::CLAVE_EVENTOS, []);
+        $eventos = $this->compartido()->get(self::CLAVE_EVENTOS, []);
         array_unshift($eventos, $evento);
-        Cache::forever(self::CLAVE_EVENTOS, array_slice($eventos, 0, 60));
+        $this->compartido()->forever(self::CLAVE_EVENTOS, array_slice($eventos, 0, 60));
     }
 }

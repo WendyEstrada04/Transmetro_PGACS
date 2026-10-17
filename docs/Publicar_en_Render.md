@@ -58,18 +58,40 @@ Abre la dirección que te dio Render (por ejemplo `https://transmetro-fm62.onren
 | Administrador | `admin@gmail.com`      | `admin123`    |
 | Operador      | `operador@gmail.com`   | `operador123` |
 
-## Cómo funciona la simulación publicada
+## Cómo funciona la simulación publicada (las 24 horas)
 
-- Los buses avanzan **mientras alguien tiene abierta** la página de Simulación o el mapa de monitoreo.
-  Si nadie la ve, la simulación espera; al volver a abrirla sigue desde donde estaba.
-- Si la simulación aparece en pausa (por ejemplo, después de que Render reinicia el servidor),
-  entra como administrador a **Simulación** y presiona **Iniciar**.
-- La simulación respeta los horarios de las líneas: de noche no circulan buses.
+- **Siempre encendida:** arranca encendida y su estado se guarda en la base de datos, así que sigue encendida
+  aunque Render reinicie el servidor. Solo se apaga si un administrador presiona **Pausar**.
+- **Calcula sola, sin páginas abiertas:** junto con la aplicación arranca un motor en segundo plano
+  (`php artisan transmetro:motor`, lo inicia `docker/iniciar.sh`).
+  - Si alguien tiene abierta una pantalla del sistema, hace un ciclo cada ~10 segundos y los buses se ven avanzar.
+  - Si nadie la ve, hace un ciclo cada 3 minutos: la operación sigue avanzando con poca transferencia de datos.
+  - La simulación respeta los horarios de las líneas: de noche no circulan buses.
+- **Servidor siempre despierto:** cada 10 minutos el motor visita la página `/up` de la aplicación. Render cuenta
+  esa visita como actividad y no apaga el servidor. Un servicio gratis encendido todo el mes usa unas 744 de las
+  750 horas gratis de Render, por eso solo debe haber **un** servicio en la cuenta.
+- **Limpieza automática:** cada hora se borran los pagos, bajadas, viajes terminados y alertas cerradas con más de
+  2 días (`TRANSMETRO_RETENCION_HORAS=48`). Si la base pasa de 350 MB, se conservan solo las últimas 12 horas.
+  No se borran tarjetas, saldos, recargas, personal, buses, líneas ni la bitácora. Los reportes del día siguen
+  completos; el historial solo cubre los últimos días.
+- **Límites gratis de Supabase:** 500 MB de base de datos y 5 GB de transferencia al mes. El motor está ajustado para
+  gastar unos 2 GB al mes sin nadie mirando; cada hora con el sistema abierto gasta unos 40 MB más.
+- Limpieza manual: `php artisan transmetro:limpiar --horas=24`.
+
+### Monitoreo opcional con UptimeRobot (recomendado)
+
+Sirve de respaldo para despertar el servidor si Render lo reinicia, y mide la disponibilidad (RNF-03):
+
+1. Crea una cuenta gratis en <https://uptimerobot.com>.
+2. **+ New monitor** → tipo **HTTP(s)**.
+3. URL: `https://transmetro-fm62.onrender.com/up` · intervalo: **5 minutes**.
+4. Guarda. UptimeRobot te avisa por correo si la aplicación deja de responder.
 
 ## Cosas a saber del plan gratis de Render
 
-- Si nadie entra durante 15 minutos, Render apaga el servidor. La siguiente visita tarda cerca de
-  un minuto en cargar mientras se enciende; después responde normal.
+- Normalmente Render apaga el servidor si nadie entra durante 15 minutos; el motor lo evita visitando `/up`.
+  Si alguna vez se apaga (por ejemplo, por mantenimiento de Render), la siguiente visita tarda cerca de un
+  minuto en cargar mientras se enciende; después responde normal.
 - Cada vez que subes cambios a GitHub (`git push`), Render vuelve a publicar la aplicación sola.
 - Si algo falla, en Render entra a **Logs** para ver el mensaje.
 
