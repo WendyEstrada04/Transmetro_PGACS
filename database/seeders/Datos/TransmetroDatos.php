@@ -505,9 +505,9 @@ class TransmetroDatos
 
         // ---------------- USUARIOS (credenciales de prueba) ----------------
         $users = [
-            ['name' => 'Administrador Municipal', 'email' => 'admin@transmetro.test', 'email_verified_at' => $fecha($ahora),
+            ['name' => 'Administrador Municipal', 'email' => 'admin@gmail.com', 'email_verified_at' => $fecha($ahora),
                 'password' => $hash('admin123'), 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'administrador', 'id_empleado' => null],
-            ['name' => 'Operador estación San Sebastián', 'email' => 'operador@transmetro.test', 'email_verified_at' => $fecha($ahora),
+            ['name' => 'Operador estación San Sebastián', 'email' => 'operador@gmail.com', 'email_verified_at' => $fecha($ahora),
                 'password' => $hash('operador123'), 'created_at' => $fecha($ahora), 'updated_at' => $fecha($ahora), 'rol' => 'operador', 'id_empleado' => $operadorUsuario],
         ];
 

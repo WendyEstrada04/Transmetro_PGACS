@@ -57,13 +57,13 @@ abstract class TestCase extends BaseTestCase
 
     protected function administrador(): User
     {
-        return User::where('email', 'admin@transmetro.test')->firstOrFail();
+        return User::where('email', 'admin@gmail.com')->firstOrFail();
     }
 
     /** Operador del primer bus de la Línea 1 (que pasa por San Sebastián) según los datos de prueba. */
     protected function operador(): User
     {
-        return User::where('email', 'operador@transmetro.test')->firstOrFail();
+        return User::where('email', 'operador@gmail.com')->firstOrFail();
     }
 
     /**

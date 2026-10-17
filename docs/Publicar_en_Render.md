@@ -55,8 +55,8 @@ Abre la dirección que te dio Render (por ejemplo `https://transmetro-fm62.onren
 
 | Usuario       | Correo                       | Contraseña    |
 |---------------|------------------------------|---------------|
-| Administrador | `admin@transmetro.test`      | `admin123`    |
-| Operador      | `operador@transmetro.test`   | `operador123` |
+| Administrador | `admin@gmail.com`      | `admin123`    |
+| Operador      | `operador@gmail.com`   | `operador123` |
 
 ## Cómo funciona la simulación publicada
 
