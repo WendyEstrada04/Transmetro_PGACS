@@ -38,10 +38,10 @@ Usa la conexión **Session pooler** (puerto 5432), que es la que ya tiene el `.e
 1. Entra a <https://render.com> y crea la cuenta con **"Sign in with GitHub"**.
 2. Haz clic en **New → Blueprint**.
 3. Elige el repositorio **Transmetro_PGACS**. Render lee el archivo `render.yaml` y muestra el servicio
-   **transmetro** (plan gratis, región Virginia, cerca de Supabase).
+   **transmetrogt** (plan gratis, región Virginia, cerca de Supabase).
 4. Llena los datos que pide:
    - `APP_KEY`, `DB_HOST`, `DB_USERNAME`, `DB_PASSWORD`: los del paso 2.
-   - `APP_URL`: `https://transmetro.onrender.com` (si Render te da otra dirección, cámbiala después en
+   - `APP_URL`: `https://transmetrogt.onrender.com` (si Render te da otra dirección, cámbiala después en
      **Environment** y vuelve a desplegar).
 5. Haz clic en **Apply**. La primera construcción tarda entre 5 y 10 minutos. Al terminar, el estado
    dice **Live**.
@@ -51,7 +51,7 @@ incluidas las contraseñas nuevas de los usuarios de demostración.
 
 ## Paso 4. Probar
 
-Abre la dirección que te dio Render (por ejemplo `https://transmetro.onrender.com`) e inicia sesión:
+Abre la dirección que te dio Render (por ejemplo `https://transmetrogt.onrender.com`) e inicia sesión:
 
 | Usuario       | Correo                       | Contraseña    |
 |---------------|------------------------------|---------------|

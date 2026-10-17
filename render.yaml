@@ -2,7 +2,7 @@
 # Render construye la imagen con el Dockerfile y la base de datos sigue en Supabase.
 services:
   - type: web
-    name: transmetro
+    name: transmetrogt
     runtime: docker
     plan: free
     region: virginia          # cerca de Supabase (us-east-1): las páginas responden más rápido
@@ -18,7 +18,7 @@ services:
       - key: APP_KEY
         sync: false           # se copia del archivo .env de la laptop
       - key: APP_URL
-        sync: false           # la dirección que da Render, por ejemplo https://transmetro.onrender.com
+        sync: false           # la dirección que da Render, https://transmetrogt.onrender.com
       - key: APP_LOCALE
         value: es
       - key: LOG_CHANNEL
