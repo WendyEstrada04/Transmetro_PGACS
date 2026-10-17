@@ -12,6 +12,10 @@ RUN npm run build
 # 2) Aplicación Laravel servida con FrankenPHP (PHP 8.4).
 FROM dunglas/frankenphp:1-php8.4-bookworm
 RUN install-php-extensions pdo_pgsql pgsql intl zip opcache
+# Render no permite programas con permisos especiales (capabilities): se le quitan a FrankenPHP.
+# No los necesita porque escucha en el puerto que da Render (10000), no en el 80.
+RUN (command -v setcap || (apt-get update && apt-get install -y --no-install-recommends libcap2-bin && rm -rf /var/lib/apt/lists/*)) \
+    && setcap -r /usr/local/bin/frankenphp
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 COPY docker/php.ini /usr/local/etc/php/conf.d/transmetro.ini
 
