@@ -25,3 +25,12 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Archivos que no se publican en el repositorio (se entregan aparte o son de herramientas del equipo)
+/docs/documentacion/
+/Claude outputs/
+/.claude/
+/CLAUDE.md
+/AGENTS.md
+/.mcp.json
+/boost.json
