@@ -1,58 +1,67 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Sistema de Control Transmetro
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Aplicación web para el control de la operación del **Transmetro de la Ciudad de Guatemala**: líneas y estaciones oficiales, flota de buses, personal, accesos, alertas de aforo, cobro con Tarjeta Ciudadana, reportes y bitácora de auditoría.
 
-## About Laravel
+Proyecto del curso de Aseguramiento de la Calidad de Software, por Wendy Celeste Nathaly Estrada González.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Aplicación publicada:** https://transmetro-fm62.onrender.com
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Usuario | Correo | Contraseña |
+|---|---|---|
+| Administrador | `admin@gmail.com` | `admin123` |
+| Operador (estación San Sebastián) | `operador@gmail.com` | `operador123` |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+> En el plan gratuito de Render, si el servidor estuvo apagado, la primera visita puede tardar cerca de un minuto.
 
-## Learning Laravel
+## Funciones principales
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- **Red oficial:** 8 líneas (1, 2, 6, 7, 12, 13, 18 y Ruta 5), 121 estaciones con su orden, distancias, horarios y trazo en el mapa.
+- **Flota y personal:** buses de n a 2n por línea, parqueos, pilotos, guardias de seguridad y operadores por estación.
+- **Operación en vivo:** monitoreo en el mapa, alertas de refuerzo al pasar el 150 % del aforo, espera extra cuando un bus va por debajo del 25 % y envío automático de buses de refuerzo.
+- **Cobro sin efectivo:** Tarjeta Ciudadana (vecino, adulto mayor, discapacidad) y tarjeta bancaria en los molinetes del bus.
+- **Reportes** de estaciones, líneas y buses asignados, con filtros y exportación a PDF.
+- **Bitácora de auditoría** inalterable: quién hizo qué, cuándo y qué datos cambió.
+- **Simulación** de la operación las 24 horas, con limpieza automática de los datos antiguos.
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## Tecnologías
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+PHP 8.4 · Laravel 13 · Blade y Tailwind CSS · PostgreSQL (Supabase) · Leaflet y OpenStreetMap · Pest y Playwright · GitHub Actions · Docker en Render.
 
-## Agentic Development
+## Estructura
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+| Carpeta | Contenido |
+|---|---|
+| `app/` | Modelos, controladores y servicios (cobro de pasajes, simulador, reportes, bitácora, importador KML) |
+| `database/migrations` | Estructura de la base de datos, triggers y reglas de negocio |
+| `database/seeders` | Datos oficiales de la red y datos de prueba |
+| `resources/views` | Pantallas de la aplicación |
+| `tests/` | Pruebas automatizadas con Pest |
+| `docs/` | Script de creación de la base de datos, consultas de los reportes, modelo entidad-relación y guía de publicación |
+| `docker/`, `Dockerfile`, `render.yaml` | Publicación en Render |
+| `bat/`, `iniciar.bat`, `probar.bat` | Arranque del sistema y de las pruebas en Windows |
 
-```bash
-composer require laravel/boost --dev
+## Ejecutar en una computadora (Windows)
 
-php artisan boost:install
+1. Instalar PHP 8.4, Composer y Node.js.
+2. Copiar `.env.example` como `.env` y escribir los datos de conexión de PostgreSQL / Supabase.
+3. Ejecutar:
+   ```
+   composer install
+   npm install
+   npm run build
+   php artisan key:generate
+   php artisan migrate --seed
+   ```
+4. Abrir el sistema con **`iniciar.bat`** (o `php artisan serve`) y entrar a http://127.0.0.1:8000.
+
+## Pruebas
+
+```
+php artisan test
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+250 pruebas automatizadas (1,183 comprobaciones) que verifican las reglas del sistema, la seguridad por roles y las reglas de la base de datos. Se ejecutan solas en GitHub Actions con cada cambio.
 
-## Contributing
+## Base de datos
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+22 tablas, 40 llaves foráneas, 17 triggers con las reglas de negocio, 1 procedimiento almacenado y seguridad por filas (RLS) en todas las tablas. El script completo está en `docs/Script_Creacion_Estructuras_BD_PostgreSQL.sql`.
